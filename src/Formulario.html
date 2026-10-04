@@ -9,6 +9,7 @@
     color: #0b5394; border-radius: 6px; cursor: pointer; }
   .tabs button.on { background: #0b5394; color: #fff; }
   #stock { padding: 8px; border-radius: 6px; background: #e8f0fe; }
+  #cargo { margin-top: 8px; padding: 8px; border-radius: 6px; border: 2px dashed #0b5394; color: #0b5394; font-weight: bold; }
   #stock.bajo { background: #f4cccc; color: #990000; font-weight: bold; }
   label { display: block; margin-top: 8px; font-weight: bold; font-size: 13px; }
   input, select { width: 100%; box-sizing: border-box; padding: 7px; font-size: 14px; margin-top: 3px; font-weight: normal; }
@@ -35,6 +36,7 @@
     <label>Paquetes (500 hojas) <input type="number" id="paquetes" min="0" step="1" value="0"></label>
   </div>
   <div id="SALIDA">
+    <div id="cargo"></div>
     <label>Persona que recibe <input id="s_recibe" list="personas" autocomplete="off"></label>
     <label>Área <input id="s_lugar" list="lugares" autocomplete="off"></label>
     <label>Autorizado por (jefe) <input id="s_autoriza" list="autorizadores" autocomplete="off"></label>
@@ -89,6 +91,8 @@
       ['s_entrega', 'i_recibe'].forEach(id => { if (!$(id).value) $(id).value = d.custodio; });
       const bajo = d.stock <= d.minimo;
       $('stock').textContent = 'Stock: ' + stockTexto(d.stock) + (bajo ? ' — STOCK BAJO' : '');
+      $('cargo').textContent = `Esta entrega será el CARGO N° ${d.proximoCargo} de la PLANILLA N° ` +
+        `${Math.ceil(d.proximoCargo / d.filasPlanilla)}: la persona firma esa fila.`;
       $('stock').classList.toggle('bajo', bajo);
     }).withFailureHandler(e => $('error').textContent = e.message).datosFormulario();
   }

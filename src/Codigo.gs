@@ -50,6 +50,8 @@ function datosFormulario() {
   return {
     paqCaja: PAQ_POR_CAJA,
     stock: calcularStock(filas),
+    proximoCargo: siguienteCargo(filas),
+    filasPlanilla: FILAS_PLANILLA,
     minimo: Number(hoja_('Resumen').getRange(R.MIN).getValue()) || 0,
     custodio: PropertiesService.getUserProperties().getProperty('custodio') || '',
     lugares: unicos(C.LUGAR),
