@@ -325,25 +325,25 @@ function crearPlanilla_(ss) {
   const sh = ss.insertSheet('Planilla');
   const fin = 6 + FILAS_PLANILLA;
   sh.setHiddenGridlines(true);
-  [40, 80, 160, 120, 100, 120, 150].forEach((w, i) => sh.setColumnWidth(i + 1, w));
+  [40, 80, 125, 100, 90, 100, 100, 130].forEach((w, i) => sh.setColumnWidth(i + 1, w));
   sh.getRange('A1:B3').merge().setNote('Logo: Insertar > Imagen > Imagen en la celda.');
-  sh.getRange('C1:G1').merge().setValue(INSTITUCION).setFontWeight('bold').setFontSize(14);
-  sh.getRange('C2:G2').merge().setValue(OFICINA).setWrap(true).setFontSize(9);
-  sh.getRange('C3:G3').merge().setValue('PLANILLA DE CARGOS – ENTREGA DE PAPEL BOND A4').setFontWeight('bold');
+  sh.getRange('C1:H1').merge().setValue(INSTITUCION).setFontWeight('bold').setFontSize(14);
+  sh.getRange('C2:H2').merge().setValue(OFICINA).setWrap(true).setFontSize(9);
+  sh.getRange('C3:H3').merge().setValue('PLANILLA DE CARGOS – ENTREGA DE PAPEL BOND A4').setFontWeight('bold');
   sh.setRowHeight(2, 32);
   sh.getRange('A4:B4').merge().setValue('Planilla N°').setFontWeight('bold');
   sh.getRange('C4').setValue(1).setFontWeight('bold').setHorizontalAlignment('left').setBackground('#fff2cc');
 
-  sh.getRange('A6:G6').setValues([['N°', 'Fecha', 'Recibe (nombre)', 'Área', 'Cantidad', 'Autorizó', 'Firma']])
+  sh.getRange('A6:H6').setValues([['N°', 'Fecha', 'Recibe (nombre)', 'Área', 'Cantidad', 'Autorizó', 'Entregó', 'Firma']])
     .setFontWeight('bold').setBackground('#d9e2f3');
   sh.getRange('A7').setFormula(`=SEQUENCE(${FILAS_PLANILLA},1,($C$4-1)*${FILAS_PLANILLA}+1)`);
   // Destino ← columna de Movimientos (L = Cargo N°)
-  [['B', 'A'], ['C', 'I'], ['D', 'G'], ['E', 'F'], ['F', 'J']].forEach(([d, o]) =>
+  [['B', 'A'], ['C', 'I'], ['D', 'G'], ['E', 'F'], ['F', 'J'], ['G', 'H']].forEach(([d, o]) =>
     sh.getRange(`${d}7:${d}${fin}`)
       .setFormula(`=IFERROR(INDEX(Movimientos!${o}:${o},MATCH($A7,Movimientos!$L:$L,0)),"")`));
   sh.getRange(`B7:B${fin}`).setNumberFormat('dd/mm/yyyy');
   sh.setRowHeights(7, FILAS_PLANILLA, 34);
-  sh.getRange(`A6:G${fin}`).setBorder(true, true, true, true, true, true)
+  sh.getRange(`A6:H${fin}`).setBorder(true, true, true, true, true, true)
     .setVerticalAlignment('middle').setFontSize(9).setWrap(true);
-  sh.getRange(`A${fin + 3}`).setValue('Entregado por (custodio): ____________________________     Firma: ____________________');
+  sh.getRange(`A${fin + 3}`).setValue('Revisado por (responsable del papel): ____________________________     Firma: ____________________');
 }
