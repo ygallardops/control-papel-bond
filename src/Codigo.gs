@@ -10,23 +10,31 @@ const ENCABEZADOS =['Fecha', 'Tipo', 'Cajas', 'Paquetes', 'Total paquetes', 'Can
   'Entregado por', 'Recibido por', 'Autorizado por', 'Medio', 'Cargo N°', 'Firmado', 'Registrado por', 'Registrado el',
   'Escaneo planilla'];
 // Índices (base 0) de columnas en la hoja Movimientos
-const C = { TIPO: 1, TOTAL: 4, LUGAR: 6, ENTREGA: 7, RECIBE: 8, AUTORIZA: 9, CARGO: 11, FIRMADO: 12, ESCANEO: 15 };
+const C = { FECHA: 0, TIPO: 1, TOTAL: 4, LUGAR: 6, ENTREGA: 7, RECIBE: 8, AUTORIZA: 9, CARGO: 11, FIRMADO: 12, ESCANEO: 15 };
+// Celdas editables (amarillas) del Resumen: se conservan cada vez que se redibuja
+const R = { MIN: 'E6', DESDE: 'B10', HASTA: 'D10' };
 
 function onOpen() {
   SpreadsheetApp.getUi().createMenu('Papel Bond')
     .addItem('Registrar movimiento', 'abrirFormulario')
     .addItem('Ir a la planilla actual', 'irPlanillaActual')
     .addItem('Subir escaneo de planilla firmada', 'abrirEscaneo')
+    .addItem('Actualizar resumen', 'renderResumen')
     .addItem('Exportar reporte a PDF', 'exportarReportePdf')
     .addItem('Manual de uso', 'abrirManual')
     .addSeparator()
     .addItem('Configuración inicial (solo una vez)', 'configurar')
     .addToUi();
-  // Hojas configuradas antes de existir el reporte mensual: se agrega una sola vez
-  const res = SpreadsheetApp.getActive().getSheetByName('Resumen');
-  if (res && !res.getRange('J13').getValue()) crearReporteMensual_(res);
   const mov = SpreadsheetApp.getActive().getSheetByName('Movimientos');
   if (mov && !mov.getProtections(SpreadsheetApp.ProtectionType.SHEET).length) protegerMovimientos_(mov);
+  renderResumen(); // "Actualizado" y el período por defecto quedan al día
+}
+
+// Redibuja el Resumen al editar sus celdas amarillas o la hoja Movimientos (p. ej. la casilla Firmado)
+function onEdit(e) {
+  const nombre = e.range.getSheet().getName();
+  if (nombre === 'Movimientos' || (nombre === 'Resumen' && Object.values(R).includes(e.range.getA1Notation())))
+    renderResumen();
 }
 
 function abrirFormulario() {
@@ -42,7 +50,7 @@ function datosFormulario() {
   return {
     paqCaja: PAQ_POR_CAJA,
     stock: calcularStock(filas),
-    minimo: Number(hoja_('Resumen').getRange('B5').getValue()) || 0,
+    minimo: Number(hoja_('Resumen').getRange(R.MIN).getValue()) || 0,
     custodio: PropertiesService.getUserProperties().getProperty('custodio') || '',
     lugares: unicos(C.LUGAR),
     personas: [...new Set([...unicos(C.ENTREGA), ...unicos(C.RECIBE)])].sort(),
@@ -83,6 +91,7 @@ function registrar(f) {
       Session.getActiveUser().getEmail(), new Date()]);
     if (salida) sh.getRange(sh.getLastRow(), C.FIRMADO + 1).insertCheckboxes();
     PropertiesService.getUserProperties().setProperty('custodio', salida ? t('entrega') : t('recibe'));
+    renderResumen();
 
     return {
       tipo, cargo, cantidad: cantidadTexto(cajas, paquetes),
@@ -113,15 +122,18 @@ function dialogoEnlace_(titulo, texto, url) {
   SpreadsheetApp.getUi().showModalDialog(html, titulo);
 }
 
-// Exporta la hoja Resumen (período desde/hasta + mes a mes) a PDF A4 horizontal y lo guarda en Drive
+// Exporta el Resumen (A4 vertical, solo el área dibujada) a PDF y lo guarda en Drive
 function exportarReportePdf() {
   const ss = SpreadsheetApp.getActive(), sh = hoja_('Resumen');
-  const [desde, hasta] = sh.getRange('B8:B9').getValues().map(r => r[0]);
+  renderResumen();
+  const [desde, hasta] = [R.DESDE, R.HASTA].map(a => sh.getRange(a).getValue());
   if (!(desde instanceof Date) || !(hasta instanceof Date))
     throw new Error('Revisa las fechas "desde" y "hasta" en la hoja Resumen.');
   SpreadsheetApp.flush();
   const url = `https://docs.google.com/spreadsheets/d/${ss.getId()}/export?format=pdf&gid=${sh.getSheetId()}` +
-    '&size=A4&portrait=false&fitw=true&gridlines=false&printtitle=false&sheetnames=false&pagenum=CENTER';
+    `&r1=0&c1=0&r2=${sh.getLastRow()}&c2=6&size=A4&portrait=true&fitw=true&gridlines=false&printtitle=false` +
+    '&sheetnames=false&pagenum=CENTER&horizontal_alignment=CENTER' +
+    '&top_margin=0.5&bottom_margin=0.5&left_margin=0.5&right_margin=0.5';
   const resp = UrlFetchApp.fetch(url,
     { headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() }, muteHttpExceptions: true });
   if (resp.getResponseCode() !== 200) throw new Error(`No se pudo generar el PDF (código ${resp.getResponseCode()}).`);
@@ -179,6 +191,7 @@ function subirEscaneo(planilla, archivo) {
     sh.getRange(i + 2, C.FIRMADO + 1).setValue(true);
     sh.getRange(i + 2, C.ESCANEO + 1).setValue(url);
   });
+  renderResumen();
   return { filas: indices.length };
 }
 
@@ -213,6 +226,53 @@ function siguienteCargo(filas) {
   return Math.max(0, ...filas.map(r => Number(r[C.CARGO]) || 0)) + 1;
 }
 
+const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+
+// Movimientos de un tipo entre dos fechas (inclusive, por día), agrupados por columna y ordenados de mayor a menor
+function agrupar(filas, tipo, col, desde, hasta) {
+  const fin = new Date(hasta.getFullYear(), hasta.getMonth(), hasta.getDate() + 1);
+  const totales = {};
+  filas.filter(r => r[C.TIPO] === tipo && r[C.FECHA] instanceof Date && r[C.FECHA] >= desde && r[C.FECHA] < fin)
+    .forEach(r => { const k = String(r[col]).trim() || '(sin dato)'; totales[k] = (totales[k] || 0) + Number(r[C.TOTAL]); });
+  return Object.entries(totales).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+}
+
+// [nombre, total] → [nombre, total, % del total, barra de texto]
+function conBarras(lista) {
+  const total = lista.reduce((s, [, n]) => s + n, 0), max = lista.length ? lista[0][1] : 0;
+  return lista.map(([k, n]) => [k, n, total ? n / total : 0, '█'.repeat(Math.max(1, Math.round(n / max * 14)))]);
+}
+
+// Últimos n meses hasta `hoy` (desde el primer mes con movimientos): [mes, ingresos, salidas, saldo al cierre]
+function mesAMes(filas, hoy, n) {
+  const datadas = filas.filter(r => r[C.FECHA] instanceof Date);
+  if (!datadas.length) return [];
+  const primero = new Date(Math.min(...datadas.map(r => r[C.FECHA])));
+  const salida = [];
+  for (let i = n - 1; i >= 0; i--) {
+    const ini = new Date(hoy.getFullYear(), hoy.getMonth() - i, 1), fin = new Date(ini.getFullYear(), ini.getMonth() + 1, 1);
+    if (fin <= new Date(primero.getFullYear(), primero.getMonth(), 1)) continue;
+    const suma = (tipo, desde) => datadas.filter(r => r[C.TIPO] === tipo && r[C.FECHA] >= desde && r[C.FECHA] < fin)
+      .reduce((s, r) => s + Number(r[C.TOTAL]), 0);
+    salida.push([`${MESES[ini.getMonth()]} ${ini.getFullYear()}`, suma('INGRESO', ini), suma('SALIDA', ini),
+      suma('INGRESO', new Date(0)) - suma('SALIDA', new Date(0))]);
+  }
+  return salida;
+}
+
+// Consumo por área en los últimos n meses: { meses: [etiquetas], filas: [[área, ...n valores]] } por total desc
+function areasPorMes(filas, hoy, n) {
+  const meses = [...Array(n)].map((_, i) => new Date(hoy.getFullYear(), hoy.getMonth() - (n - 1 - i), 1));
+  const porArea = {};
+  meses.forEach((ini, i) => agrupar(filas, 'SALIDA', C.LUGAR, ini, new Date(ini.getFullYear(), ini.getMonth() + 1, 0))
+    .forEach(([area, total]) => { (porArea[area] = porArea[area] || Array(n).fill(0))[i] = total; }));
+  const suma = v => v.reduce((a, b) => a + b, 0);
+  return {
+    meses: meses.map(d => `${MESES[d.getMonth()]} ${d.getFullYear()}`),
+    filas: Object.entries(porArea).sort((a, b) => suma(b[1]) - suma(a[1])).map(([area, v]) => [area, ...v]),
+  };
+}
+
 function cantidadTexto(cajas, paquetes) {
   const n = (x, s, p) => `${x} ${x === 1 ? s : p}`;
   return [cajas && n(cajas, 'caja', 'cajas'), paquetes && n(paquetes, 'paquete', 'paquetes')].filter(Boolean).join(' + ');
@@ -234,6 +294,136 @@ function protegerMovimientos_(sh) {
 
 function filasMovimientos_(sh = hoja_('Movimientos')) {
   return sh.getDataRange().getValues().slice(1);
+}
+
+// ---------- Resumen (se redibuja completo desde los datos) ----------
+
+const COLOR = {
+  primario: '#0b5394', suave: '#e8f0fe', tarjeta: '#f4f7fb', borde: '#d0d7e2', gris: '#5f6368',
+  alerta: '#fde8e8', alertaTexto: '#a50e0e', editable: '#fff8e1', zebra: '#f8fafc',
+};
+
+function renderResumen() {
+  const ss = SpreadsheetApp.getActive(), sh = ss.getSheetByName('Resumen');
+  if (!sh || !ss.getSheetByName('Movimientos')) return;
+  const filas = filasMovimientos_();
+
+  // Conserva lo que el usuario escribió en las celdas amarillas (fórmula o valor), si es válido
+  const fecha = (a, porDefecto) => {
+    const r = sh.getRange(a), v = r.getValue();
+    return v instanceof Date && v.getFullYear() >= 2000 ? (r.getFormula() || v) : porDefecto;
+  };
+  const minLeido = sh.getRange(R.MIN).getValue();
+  const min = typeof minLeido === 'number' ? minLeido : 10;
+  const desde = fecha(R.DESDE, '=EOMONTH(TODAY(),-1)+1'), hasta = fecha(R.HASTA, '=TODAY()');
+
+  sh.clear();
+  sh.getRange(1, 1, sh.getMaxRows(), sh.getMaxColumns()).clearNote().breakApart();
+  sh.setConditionalFormatRules([]);
+  sh.setHiddenGridlines(true);
+  [200, 85, 85, 85, 85, 85].forEach((w, i) => sh.setColumnWidth(i + 1, w));
+  sh.getRange(1, 1, sh.getMaxRows(), 6).setFontFamily('Arial').setFontSize(9).setVerticalAlignment('middle');
+  sh.setRowHeights(1, sh.getMaxRows(), 21);
+
+  // Encabezado
+  sh.getRange('A1:F1').merge().setValue('Control de Papel Bond A4').setBackground(COLOR.primario)
+    .setFontColor('#ffffff').setFontSize(16).setFontWeight('bold');
+  sh.setRowHeight(1, 38);
+  sh.getRange('A2:F2').merge().setValue(`${INSTITUCION} · ${OFICINA}`).setFontColor(COLOR.gris).setWrap(true);
+  sh.setRowHeight(2, 30);
+  const tz = ss.getSpreadsheetTimeZone();
+  sh.getRange('A3:F3').merge().setValue('Actualizado: ' + Utilities.formatDate(new Date(), tz, 'dd/MM/yyyy HH:mm'))
+    .setFontColor(COLOR.gris).setFontSize(8).setFontStyle('italic').setHorizontalAlignment('right');
+  sh.setRowHeight(4, 8);
+
+  // Tarjetas
+  const stock = calcularStock(filas);
+  const pendientes = filas.filter(r => r[C.TIPO] === 'SALIDA' && r[C.FIRMADO] !== true).length;
+  const bajo = stock <= min;
+  tarjeta_(sh, 1, 'STOCK ACTUAL', stock,
+    `${Math.floor(stock / PAQ_POR_CAJA)} caja(s) + ${stock % PAQ_POR_CAJA} paquete(s)` + (bajo ? ' · STOCK BAJO' : ''),
+    bajo ? COLOR.alerta : COLOR.tarjeta, bajo ? COLOR.alertaTexto : COLOR.primario);
+  tarjeta_(sh, 3, 'PENDIENTES DE FIRMA', pendientes, 'entregas sin firma registrada', COLOR.tarjeta, COLOR.primario);
+  tarjeta_(sh, 5, 'ALERTA DE STOCK', min, 'avisa si quedan ≤ (editable)', COLOR.editable, '#202124');
+  sh.getRange('A6').setNumberFormat('0 "paquetes"');
+  sh.getRange(R.MIN).setNumberFormat('0 "paquetes"');
+  sh.setRowHeight(6, 36);
+  sh.setRowHeight(8, 10);
+
+  // Período
+  seccion_(sh, 9, 'Período del reporte');
+  sh.getRange('A10:F11').setValues([
+    ['Desde', '', 'Hasta', '', 'Ingresos', ''],
+    ['Cambia las fechas amarillas para ver otro período.', '', '', '', 'Salidas', ''],
+  ]);
+  sh.getRange(R.DESDE).setValue(desde);
+  sh.getRange(R.HASTA).setValue(hasta);
+  sh.getRange('A10').setHorizontalAlignment('right').setFontColor(COLOR.gris);
+  sh.getRange('C10').setHorizontalAlignment('right').setFontColor(COLOR.gris);
+  sh.getRange('E10:E11').setHorizontalAlignment('right').setFontColor(COLOR.gris);
+  sh.getRange('A11:D11').merge().setFontSize(8).setFontStyle('italic').setFontColor(COLOR.gris);
+  [R.DESDE, R.HASTA].forEach(a => sh.getRange(a).setNumberFormat('dd/mm/yyyy').setBackground(COLOR.editable)
+    .setHorizontalAlignment('center').setBorder(true, true, true, true, false, false, COLOR.borde, null));
+  SpreadsheetApp.flush();
+  const d = sh.getRange(R.DESDE).getValue(), h = sh.getRange(R.HASTA).getValue();
+  const okPeriodo = d instanceof Date && h instanceof Date;
+  const area = okPeriodo ? agrupar(filas, 'SALIDA', C.LUGAR, d, h) : [];
+  const persona = okPeriodo ? agrupar(filas, 'SALIDA', C.RECIBE, d, h) : [];
+  const origen = okPeriodo ? agrupar(filas, 'INGRESO', C.LUGAR, d, h) : [];
+  const suma = l => l.reduce((s, [, n]) => s + n, 0);
+  sh.getRange('F10:F11').setValues([[suma(origen)], [suma(area)]]).setNumberFormat('0 "paq."').setFontWeight('bold');
+
+  // Tablas, una debajo de otra
+  const vacio = okPeriodo ? 'Sin movimientos en el período.' : 'Revisa las fechas del período.';
+  const hoy = new Date();
+  const am = areasPorMes(filas, hoy, 5);
+  let fila = 13;
+  fila = tabla_(sh, fila, 'Consumo por área', ['Área', 'Paquetes', '%', ''], conBarras(area), true, vacio);
+  fila = tabla_(sh, fila, 'Consumo por persona', ['Persona', 'Paquetes', '%', ''], conBarras(persona), true, vacio);
+  fila = tabla_(sh, fila, 'Ingresos por origen', ['Origen', 'Paquetes', '%', ''], conBarras(origen), true, vacio);
+  fila = tabla_(sh, fila, 'Mes a mes (últimos 12 meses, paquetes)', ['Mes', 'Ingresos', 'Salidas', 'Saldo al cierre'],
+    mesAMes(filas, hoy, 12), false, 'Sin movimientos.');
+  tabla_(sh, fila, 'Consumo por área (últimos 5 meses, paquetes)', ['Área', ...am.meses], am.filas, false,
+    'Sin entregas en los últimos 5 meses.');
+}
+
+function tarjeta_(sh, col, etiqueta, valor, nota, fondo, colorValor) {
+  sh.getRange(5, col, 3, 2).setBackground(fondo).setHorizontalAlignment('center')
+    .setBorder(true, true, true, true, false, false, COLOR.borde, SpreadsheetApp.BorderStyle.SOLID);
+  sh.getRange(5, col, 1, 2).merge().setValue(etiqueta).setFontSize(8).setFontWeight('bold').setFontColor(COLOR.gris);
+  sh.getRange(6, col, 1, 2).merge().setValue(valor).setFontSize(20).setFontWeight('bold').setFontColor(colorValor);
+  sh.getRange(7, col, 1, 2).merge().setValue(nota).setFontSize(8).setFontColor(COLOR.gris);
+}
+
+function seccion_(sh, fila, titulo) {
+  sh.getRange(fila, 1, 1, 6).merge().setValue(titulo).setFontSize(11).setFontWeight('bold').setFontColor(COLOR.primario)
+    .setBorder(null, null, true, null, null, null, COLOR.primario, SpreadsheetApp.BorderStyle.SOLID_MEDIUM);
+}
+
+// Dibuja una tabla de hasta 6 columnas desde `fila`; con `barras`, la 4.ª columna (D:F) es una barra de texto.
+// Devuelve la siguiente fila libre, dejando una en blanco.
+function tabla_(sh, fila, titulo, encabezados, datos, barras, vacio) {
+  seccion_(sh, fila, titulo);
+  const enc = sh.getRange(fila + 1, 1, 1, 6).setBackground(COLOR.suave).setFontWeight('bold');
+  sh.getRange(fila + 1, 1, 1, encabezados.length).setNumberFormat('@').setValues([encabezados]);
+  sh.getRange(fila + 1, 2, 1, 5).setHorizontalAlignment('right');
+  if (barras) enc.offset(0, 3, 1, 3).merge();
+  if (!datos.length) {
+    sh.getRange(fila + 2, 1, 1, 6).merge().setValue(vacio).setFontColor(COLOR.gris).setFontStyle('italic');
+    return fila + 4;
+  }
+  const n = datos.length, cols = datos[0].length;
+  sh.getRange(fila + 2, 1, n, 1).setNumberFormat('@'); // nombres y meses como texto ("oct 2026" no es una fecha)
+  sh.getRange(fila + 2, 1, n, cols).setValues(datos);
+  sh.getRange(fila + 2, 1, n, 6).setBackgrounds(datos.map((_, i) => Array(6).fill(i % 2 ? COLOR.zebra : '#ffffff')))
+    .setBorder(null, null, true, null, null, null, COLOR.borde, SpreadsheetApp.BorderStyle.SOLID);
+  sh.getRange(fila + 2, 2, n, 5).setHorizontalAlignment('right');
+  if (barras) {
+    sh.getRange(fila + 2, 3, n, 1).setNumberFormat('0%');
+    for (let i = 0; i < n; i++) sh.getRange(fila + 2 + i, 4, 1, 3).merge();
+    sh.getRange(fila + 2, 4, n, 1).setHorizontalAlignment('left').setFontColor(COLOR.primario);
+  }
+  return fila + 3 + n;
 }
 
 // ---------- Configuración inicial ----------
@@ -259,66 +449,13 @@ function configurar() {
       cantidadTexto(0, inicial), 'Stock inicial', '', '', '', '', '', '', Session.getActiveUser().getEmail(), hoy]);
   }
 
-  crearResumen_(ss);
+  ss.insertSheet('Resumen', 0);
   crearPlanilla_(ss);
   ss.getSheets().filter(s => !['Resumen', 'Movimientos', 'Planilla'].includes(s.getName()) && s.getLastRow() === 0)
     .forEach(s => ss.deleteSheet(s));
+  renderResumen();
   ss.getSheetByName('Resumen').activate();
   ui.alert('Listo. Usa el menú "Papel Bond > Registrar movimiento".');
-}
-
-function crearResumen_(ss) {
-  const sh = ss.insertSheet('Resumen', 0);
-  sh.setColumnWidth(1, 240);
-  sh.getRange('A1').setValue('Control de Papel Bond A4').setFontSize(16).setFontWeight('bold');
-  const sumTipo = (tipo, periodo) => `SUMIFS(Movimientos!E:E,Movimientos!B:B,"${tipo}"` +
-    (periodo ? ',Movimientos!A:A,">="&$B$8,Movimientos!A:A,"<"&($B$9+1))' : ')');
-  sh.getRange('A3:B11').setValues([
-    ['Stock actual (paquetes)', `=${sumTipo('INGRESO')}-${sumTipo('SALIDA')}`],
-    ['Equivale a', `=INT(B3/${PAQ_POR_CAJA})&" caja(s) + "&MOD(B3,${PAQ_POR_CAJA})&" paquete(s)"`],
-    ['Alerta si el stock es ≤ (paquetes)', 10],
-    ['Entregas pendientes de firma', '=COUNTIFS(Movimientos!B:B,"SALIDA",Movimientos!M:M,FALSE)'],
-    ['', ''],
-    ['Reportes — desde', '=EOMONTH(TODAY(),-1)+1'],
-    ['Reportes — hasta', '=TODAY()'],
-    ['Ingresos en el período (paquetes)', `=${sumTipo('INGRESO', true)}`],
-    ['Salidas en el período (paquetes)', `=${sumTipo('SALIDA', true)}`],
-  ]);
-  sh.getRange('A3:A11').setFontWeight('bold');
-  sh.getRange('B3').setFontSize(14).setFontWeight('bold');
-  sh.getRange('B5').setBackground('#fff2cc').setNote('Valor configurable: 10 paquetes = 1 caja.');
-  sh.getRange('B8:B9').setNumberFormat('dd/mm/yyyy').setBackground('#fff2cc')
-    .setNote('Puedes escribir otras fechas para ver otro período.');
-  sh.setConditionalFormatRules([SpreadsheetApp.newConditionalFormatRule()
-    .whenFormulaSatisfied('=$B$3<=$B$5').setBackground('#f4cccc').setFontColor('#990000')
-    .setRanges([sh.getRange('A3:B4')]).build()]);
-
-  // Reportes por período (columnas: G=Origen/Área, I=Recibido por, E=Total, B=Tipo, A=Fecha)
-  const reporte = (col, tipo, etiqueta) => `=IFERROR(QUERY(FILTER(Movimientos!A2:O,Movimientos!B2:B="${tipo}",` +
-    `Movimientos!A2:A>=$B$8,Movimientos!A2:A<$B$9+1),"select Col${col}, sum(Col5) group by Col${col} ` +
-    `order by sum(Col5) desc label Col${col} '${etiqueta}', sum(Col5) 'Paquetes'",0),"Sin datos")`;
-  [['A13', 'Consumo por área', reporte(7, 'SALIDA', 'Área')],
-   ['D13', 'Consumo por persona', reporte(9, 'SALIDA', 'Persona')],
-   ['G13', 'Ingresos por origen', reporte(7, 'INGRESO', 'Origen')]].forEach(([celda, titulo, formula]) => {
-    const r = sh.getRange(celda);
-    r.setValue(titulo).setFontWeight('bold').setBackground('#d9e2f3');
-    r.offset(1, 0).setFormula(formula);
-  });
-  [4, 7].forEach(c => sh.setColumnWidth(c, 180));
-  crearReporteMensual_(sh);
-}
-
-// Todo el historial, mes a mes (no depende de las fechas desde/hasta)
-function crearReporteMensual_(sh) {
-  const mensual = (where, pivot) => `=IFERROR(QUERY(Movimientos!A2:P,"select year(Col1), month(Col1)+1, sum(Col5) ` +
-    `where ${where} group by year(Col1), month(Col1)+1 ` + // group by ya ordena; order by + pivot da #VALUE!
-    `pivot ${pivot} label year(Col1) 'Año', month(Col1)+1 'Mes'",0),"Sin datos")`;
-  [['J13', 'Mes a mes: ingresos y salidas (paquetes)', mensual('Col1 is not null', 'Col2')],
-   ['O13', 'Mes a mes: consumo por área (paquetes)', mensual("Col2='SALIDA'", 'Col7')]].forEach(([celda, titulo, formula]) => {
-    const r = sh.getRange(celda);
-    r.setValue(titulo).setFontWeight('bold').setBackground('#d9e2f3');
-    r.offset(1, 0).setFormula(formula);
-  });
 }
 
 function crearPlanilla_(ss) {

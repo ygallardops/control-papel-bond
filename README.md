@@ -13,8 +13,8 @@ Registra cada movimiento por cajas y paquetes, mantiene el stock al día y numer
 - Rechaza una salida mayor al stock disponible y evita cargos duplicados cuando registran varias personas a la vez.
 - Asigna a cada salida un N° de cargo y su fila en la planilla de firmas: una hoja A4 cada 15 entregas en lugar de un cargo por entrega.
 - Sube el escaneo de la planilla firmada a Drive y marca como firmadas sus entregas.
-- Muestra el stock con alerta configurable, las entregas pendientes de firma y reportes por período (consumo por área y por persona, ingresos por origen) y mes a mes.
-- Exporta el resumen a PDF en Drive.
+- Muestra en la hoja Resumen el stock con alerta configurable, las entregas pendientes de firma y reportes por período (consumo por área y por persona, ingresos por origen, con barras), mes a mes y por área en los últimos meses. El script la redibuja tras cada registro o edición.
+- Exporta el resumen a PDF en Drive, en una hoja A4 vertical.
 - Protege la hoja de movimientos con aviso ante ediciones manuales.
 
 ## Estructura
@@ -23,7 +23,7 @@ Registra cada movimiento por cajas y paquetes, mantiene el stock al día y numer
 | --- | --- |
 | `src/Codigo.gs` | Menú, formulario, registro, planilla, escaneos, reportes y configuración inicial |
 | `src/Formulario.html` | Formulario de ingreso y salida |
-| `test/codigo.test.js` | Pruebas de la lógica pura: stock, numeración de cargos, planillas y cantidades |
+| `test/codigo.test.js` | Pruebas de la lógica pura: stock, cargos, planillas, cantidades y agregaciones de los reportes |
 
 ## Pruebas
 
