@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+<head>
+<base target="_top">
+<style>
+  body { font: 14px Arial, sans-serif; margin: 0; padding: 14px; color: #222; }
+  .tabs { display: flex; gap: 8px; margin-bottom: 10px; }
+  .tabs button { flex: 1; padding: 10px; font-weight: bold; border: 2px solid #0b5394; background: #fff;
+    color: #0b5394; border-radius: 6px; cursor: pointer; }
+  .tabs button.on { background: #0b5394; color: #fff; }
+  #stock { padding: 8px; border-radius: 6px; background: #e8f0fe; }
+  #stock.bajo { background: #f4cccc; color: #990000; font-weight: bold; }
+  label { display: block; margin-top: 8px; font-weight: bold; font-size: 13px; }
+  input, select { width: 100%; box-sizing: border-box; padding: 7px; font-size: 14px; margin-top: 3px; font-weight: normal; }
+  .fila { display: flex; gap: 8px; } .fila > label { flex: 1; }
+  #guardar { margin-top: 14px; width: 100%; padding: 11px; font-size: 15px; font-weight: bold; background: #0b5394;
+    color: #fff; border: 0; border-radius: 6px; cursor: pointer; }
+  #guardar:disabled { opacity: .6; }
+  #error { color: #990000; margin-top: 8px; }
+  #ok { padding: 12px; background: #d9ead3; border-radius: 6px; line-height: 1.5; }
+  #ok button { margin: 10px 6px 0 0; padding: 8px 12px; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div id="form">
+  <div class="tabs">
+    <button type="button" id="tSALIDA" class="on" onclick="modo('SALIDA')">Salida (entrega)</button>
+    <button type="button" id="tINGRESO" onclick="modo('INGRESO')">Ingreso</button>
+  </div>
+  <div id="stock">Cargando stock…</div>
+  <label>Fecha <input type="date" id="fecha"></label>
+  <div class="fila">
+    <label>Cajas (10 paq. c/u) <input type="number" id="cajas" min="0" step="1" value="0"></label>
+    <label>Paquetes (500 hojas) <input type="number" id="paquetes" min="0" step="1" value="0"></label>
+  </div>
+  <div id="SALIDA">
+    <label>Persona que recibe <input id="s_recibe" list="personas" autocomplete="off"></label>
+    <label>Área <input id="s_lugar" list="lugares" autocomplete="off"></label>
+    <label>Autorizado por (jefe) <input id="s_autoriza" list="autorizadores" autocomplete="off"></label>
+    <label>Medio de autorización
+      <select id="s_medio"><option>WhatsApp</option><option>Verbal</option><option>Correo</option>
+        <option>Llamada</option><option>Otro</option></select></label>
+    <label>Entregado por (custodio) <input id="s_entrega" list="personas" autocomplete="off"></label>
+  </div>
+  <div id="INGRESO" hidden>
+    <label>Origen (proveedor / oficina) <input id="i_lugar" list="lugares" autocomplete="off"></label>
+    <label>Persona que entrega <input id="i_entrega" list="personas" autocomplete="off"></label>
+    <label>Recibido por <input id="i_recibe" list="personas" autocomplete="off"></label>
+  </div>
+  <button id="guardar" onclick="guardar()">Registrar salida</button>
+  <div id="error"></div>
+</div>
+<div id="ok" hidden>
+  <div id="okMsg"></div>
+  <button onclick="otro()">Registrar otro</button>
+  <button onclick="google.script.host.close()">Cerrar</button>
+</div>
+<datalist id="personas"></datalist><datalist id="lugares"></datalist><datalist id="autorizadores"></datalist>
+
+<script>
+  const $ = id => document.getElementById(id);
+  let tipo = 'SALIDA', info = { paqCaja: 10, minimo: 0 };
+
+  function hoy() {
+    const d = new Date();
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    return d.toISOString().slice(0, 10);
+  }
+
+  function stockTexto(s) {
+    return `${s} paquete(s) = ${Math.floor(s / info.paqCaja)} caja(s) + ${s % info.paqCaja} paquete(s)`;
+  }
+
+  function modo(t) {
+    tipo = t;
+    ['SALIDA', 'INGRESO'].forEach(x => { $('t' + x).classList.toggle('on', x === t); $(x).hidden = x !== t; });
+    $('guardar').textContent = t === 'SALIDA' ? 'Registrar salida' : 'Registrar ingreso';
+    $('error').textContent = '';
+  }
+
+  function cargar() {
+    google.script.run.withSuccessHandler(d => {
+      info = d;
+      const opciones = arr => arr.map(v => Object.assign(document.createElement('option'), { value: v }));
+      $('personas').replaceChildren(...opciones(d.personas));
+      $('lugares').replaceChildren(...opciones(d.lugares));
+      $('autorizadores').replaceChildren(...opciones(d.autorizadores));
+      ['s_entrega', 'i_recibe'].forEach(id => { if (!$(id).value) $(id).value = d.custodio; });
+      const bajo = d.stock <= d.minimo;
+      $('stock').textContent = 'Stock: ' + stockTexto(d.stock) + (bajo ? ' — STOCK BAJO' : '');
+      $('stock').classList.toggle('bajo', bajo);
+    }).withFailureHandler(e => $('error').textContent = e.message).datosFormulario();
+  }
+
+  function guardar() {
+    const p = tipo === 'SALIDA' ? 's_' : 'i_';
+    const v = id => $(p + id) ? $(p + id).value : '';
+    const f = { tipo, fecha: $('fecha').value, cajas: $('cajas').value, paquetes: $('paquetes').value,
+      lugar: v('lugar'), entrega: v('entrega'), recibe: v('recibe'), autoriza: v('autoriza'), medio: v('medio') };
+    $('guardar').disabled = true;
+    $('error').textContent = '';
+    google.script.run.withSuccessHandler(r => {
+      $('guardar').disabled = false;
+      const lineas = r.tipo === 'SALIDA'
+        ? [`✔ Salida registrada: ${r.cantidad}.`,
+           `CARGO N° ${r.cargo} → que firme esa fila en la PLANILLA N° ${r.planilla}.`,
+           `Stock restante: ${stockTexto(r.stock)}.`]
+        : [`✔ Ingreso registrado: ${r.cantidad}.`, `Stock actual: ${stockTexto(r.stock)}.`];
+      if (r.stock <= info.minimo) lineas.push('⚠ STOCK BAJO: considera solicitar más papel.');
+      $('okMsg').innerText = lineas.join('\n');
+      $('form').hidden = true;
+      $('ok').hidden = false;
+    }).withFailureHandler(e => {
+      $('guardar').disabled = false;
+      $('error').textContent = e.message;
+    }).registrar(f);
+  }
+
+  function otro() {
+    $('cajas').value = $('paquetes').value = 0;
+    ['s_recibe', 's_lugar', 's_autoriza', 'i_lugar', 'i_entrega'].forEach(id => $(id).value = '');
+    $('ok').hidden = true;
+    $('form').hidden = false;
+    cargar();
+  }
+
+  $('fecha').value = hoy();
+  cargar();
+</script>
+</body>
+</html>
