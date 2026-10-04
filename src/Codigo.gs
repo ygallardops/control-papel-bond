@@ -18,6 +18,7 @@ function onOpen() {
   SpreadsheetApp.getUi().createMenu('Papel Bond')
     .addItem('Registrar movimiento', 'abrirFormulario')
     .addItem('Ir a la planilla actual', 'irPlanillaActual')
+    .addItem('Imprimir planilla', 'imprimirPlanilla')
     .addItem('Subir escaneo de planilla firmada', 'abrirEscaneo')
     .addItem('Actualizar resumen', 'renderResumen')
     .addItem('Exportar reporte a PDF', 'exportarReportePdf')
@@ -109,6 +110,21 @@ function irPlanillaActual() {
   const sh = hoja_('Planilla');
   sh.getRange('C4').setValue(Math.ceil(siguienteCargo(filasMovimientos_()) / FILAS_PLANILLA));
   sh.activate();
+}
+
+// PDF de la planilla que muestra la hoja (celda Planilla N°), listo para imprimir: A4 vertical, sin cuadrícula ni notas
+function urlPlanillaPdf_() {
+  const ss = SpreadsheetApp.getActive(), sh = hoja_('Planilla');
+  SpreadsheetApp.flush();
+  return `https://docs.google.com/spreadsheets/d/${ss.getId()}/export?format=pdf&gid=${sh.getSheetId()}` +
+    `&r1=0&c1=0&r2=${6 + FILAS_PLANILLA + 3}&c2=${PLANILLA_COLUMNAS.length}` +
+    '&size=A4&portrait=true&fitw=true&gridlines=false&printnotes=false&printtitle=false&sheetnames=false' +
+    '&pagenum=UNDEFINED&horizontal_alignment=CENTER&top_margin=0.4&bottom_margin=0.4&left_margin=0.4&right_margin=0.4';
+}
+
+function imprimirPlanilla() {
+  const n = hoja_('Planilla').getRange('C4').getValue();
+  dialogoEnlace_('Imprimir planilla', `Abrir la planilla N° ${n} en PDF para imprimir`, urlPlanillaPdf_());
 }
 
 // Apps Script no abre pestañas directamente: se intenta con window.open y queda el enlace por si el navegador lo bloquea
@@ -470,7 +486,7 @@ const PLANILLA_COLUMNAS = [ // [encabezado, ancho, columna de Movimientos que la
 function crearPlanilla_(ss) {
   const sh = ss.insertSheet('Planilla');
   sh.setHiddenGridlines(true);
-  sh.getRange('A1:B3').merge().setNote('Logo: Insertar > Imagen > Imagen en la celda.');
+  sh.getRange('A1:B3').merge(); // logo de la institución: Insertar > Imagen > Imagen en la celda
   sh.getRange('C1:G1').merge().setValue(INSTITUCION).setFontWeight('bold').setFontSize(14);
   sh.getRange('C2:G2').merge().setValue(OFICINA).setWrap(true).setFontSize(9);
   sh.getRange('C3:G3').merge().setValue('PLANILLA DE CARGOS – ENTREGA DE PAPEL BOND A4').setFontWeight('bold');
