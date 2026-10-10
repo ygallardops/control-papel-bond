@@ -1,7 +1,9 @@
 # Control de Papel Bond
 
 [![Pruebas](https://github.com/ygallardops/control-papel-bond/actions/workflows/pruebas.yml/badge.svg)](https://github.com/ygallardops/control-papel-bond/actions/workflows/pruebas.yml)
-[![Licencia: MIT](https://img.shields.io/badge/licencia-MIT-blue.svg)](LICENSE)
+[![Licencia MIT](https://img.shields.io/badge/licencia-MIT-blue.svg)](LICENSE)
+![Google Apps Script](https://img.shields.io/badge/Google%20Apps%20Script-4285F4?logo=google&logoColor=white)
+![Sin dependencias](https://img.shields.io/badge/dependencias-0-brightgreen)
 
 Herramienta para controlar el ingreso y la salida de papel bond A4 en una oficina, con cargo firmado por quien lo recibe.
 
@@ -28,7 +30,7 @@ Las capturas de este documento usan datos ficticios.
 
 ## Cómo funciona
 
-En lugar de un cargo por entrega, se imprime una hoja A4 cada 15 entregas[^planilla].
+En lugar de un cargo por entrega, se imprime una hoja A4 cada 15 entregas (constante `FILAS_PLANILLA` de `Codigo.gs`).
 
 ```mermaid
 flowchart LR
@@ -47,7 +49,7 @@ flowchart LR
 ## Qué hace
 
 - Registra ingresos (proveedor u otra oficina) y salidas (persona, área, quién autorizó y por qué medio) desde un formulario dentro de la hoja, que sugiere los nombres y áreas ya usados.
-- Cuenta en cajas y paquetes: 1 caja = 10 paquetes de 500 hojas[^caja]. No admite hojas sueltas.
+- Cuenta en cajas y paquetes: 1 caja = 10 paquetes de 500 hojas (constante `PAQ_POR_CAJA`). No admite hojas sueltas.
 - Rechaza una salida mayor al stock disponible y evita cargos duplicados cuando registran varias personas a la vez.
 - Muestra en el formulario, antes de registrar, el N° de cargo y la planilla que corresponden a la entrega.
 - Genera la planilla en PDF A4 vertical, lista para imprimir y llenar a mano.
@@ -167,6 +169,3 @@ Los movimientos, escaneos y reportes viven en la hoja y en el Drive de quien la 
 ## Licencia
 
 [MIT](LICENSE)
-
-[^planilla]: El número de filas por planilla se define en la constante `FILAS_PLANILLA` de `Codigo.gs`.
-[^caja]: La equivalencia se define en la constante `PAQ_POR_CAJA` de `Codigo.gs`.
