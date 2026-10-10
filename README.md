@@ -143,7 +143,8 @@ Todo se hace desde el menú <kbd>Papel Bond</kbd> de la hoja:
 .
 ├── src
 │   ├── Codigo.gs          Menú, registro, planilla, escaneos, reportes y configuración inicial
-│   └── Formulario.html    Formulario de ingreso y salida
+│   ├── Formulario.html    Formulario de ingreso y salida
+│   └── appsscript.json    Manifiesto de Apps Script (zona horaria y entorno de ejecución)
 ├── test
 │   └── codigo.test.js     Pruebas de la lógica pura
 └── docs                   Capturas de este documento
