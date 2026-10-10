@@ -36,6 +36,7 @@ function onEdit(e) {
   const nombre = e.range.getSheet().getName();
   if (nombre === 'Movimientos' || (nombre === 'Resumen' && Object.values(R).includes(e.range.getA1Notation())))
     renderResumen();
+  if (nombre === 'Planilla' && e.range.getA1Notation() === 'C4') ordenarPlanilla_(e.range.getSheet());
 }
 
 function abrirFormulario() {
@@ -109,6 +110,7 @@ function registrar(f) {
 function irPlanillaActual() {
   const sh = hoja_('Planilla');
   sh.getRange('C4').setValue(Math.ceil(siguienteCargo(filasMovimientos_()) / FILAS_PLANILLA));
+  ordenarPlanilla_(sh);
   sh.activate();
 }
 
@@ -123,7 +125,8 @@ function urlPlanillaPdf_() {
 }
 
 function imprimirPlanilla() {
-  const n = hoja_('Planilla').getRange('C4').getValue();
+  const sh = hoja_('Planilla'), n = sh.getRange('C4').getValue();
+  ordenarPlanilla_(sh);
   dialogoEnlace_('Imprimir planilla', `Abrir la planilla N° ${n} en PDF para imprimir`, urlPlanillaPdf_());
 }
 
@@ -479,9 +482,32 @@ function configurar() {
 // Planilla A4 para imprimir en blanco: quien recibe escribe nombre y cantidad y firma a mano.
 // En pantalla, cada fila se llena sola con lo registrado (útil para revisar o reimprimir llena).
 const PLANILLA_COLUMNAS = [ // [encabezado, ancho, columna de Movimientos que la llena]
-  ['N°', 35], ['Fecha', 75, 'A'], ['Nombre de quien recibe', 190, 'I'], ['Área', 110, 'G'],
-  ['Cantidad', 85, 'F'], ['Entregó', 105, 'H'], ['Firma', 150],
+  ['N°', 35], ['Fecha', 75, 'A'], ['Nombre de quien recibe', 190, 'I'], ['Firma de quien recibe', 150],
+  ['Área', 110, 'G'], ['Cantidad', 85, 'F'], ['Entregó', 105, 'H'],
 ];
+// Planillas que ya se imprimieron con la firma en la última columna: conservan ese orden (0 = ninguna)
+const PLANILLA_FIRMA_AL_FINAL_HASTA = 0;
+
+// Columnas de la planilla N° n, en el orden en que se imprime
+function columnasPlanilla(n) {
+  if (n > PLANILLA_FIRMA_AL_FINAL_HASTA) return PLANILLA_COLUMNAS;
+  const [num, fecha, nombre, firma, ...resto] = PLANILLA_COLUMNAS;
+  return [num, fecha, nombre, ...resto, firma];
+}
+
+// Pone encabezados, anchos y fórmulas de las columnas D en adelante según el N° de planilla de C4.
+// No toca Movimientos ni el formato de la hoja: la planilla es solo una vista.
+function ordenarPlanilla_(sh) {
+  const cols = columnasPlanilla(Number(sh.getRange('C4').getValue()) || 1), n = cols.length;
+  sh.getRange(6, 4, 1, n - 3).setValues([cols.slice(3).map(([t]) => t)]);
+  sh.getRange(7, 4, FILAS_PLANILLA, n - 3).clearContent();
+  cols.forEach(([, ancho, origen], i) => {
+    if (i < 3) return;
+    sh.setColumnWidth(i + 1, ancho);
+    if (origen) sh.getRange(7, i + 1, FILAS_PLANILLA, 1)
+      .setFormula(`=IFERROR(INDEX(Movimientos!${origen}:${origen},MATCH($A7,Movimientos!$L:$L,0)),"")`);
+  });
+}
 
 function crearPlanilla_(ss) {
   const sh = ss.insertSheet('Planilla');
@@ -499,17 +525,16 @@ function crearPlanilla_(ss) {
 // Encabezados, fórmulas, anchos y bordes de la tabla (filas 5 en adelante). No toca el logo ni el título.
 function formatearPlanilla_(sh) {
   const fin = 6 + FILAS_PLANILLA, n = PLANILLA_COLUMNAS.length;
-  PLANILLA_COLUMNAS.forEach(([, ancho], i) => sh.setColumnWidth(i + 1, ancho));
+  PLANILLA_COLUMNAS.slice(0, 3).forEach(([, ancho], i) => sh.setColumnWidth(i + 1, ancho));
   sh.getRange(5, 1, 1, n).merge()
     .setValue('Quien recibe escribe su nombre y la cantidad, y firma en la fila del N° de cargo que indica el formulario.')
     .setFontSize(8).setFontStyle('italic');
-  sh.getRange(6, 1, 1, n).setValues([PLANILLA_COLUMNAS.map(([t]) => t)])
-    .setFontWeight('bold').setBackground('#d9e2f3').setWrap(true);
+  sh.getRange(6, 1, 1, n).setFontWeight('bold').setBackground('#d9e2f3').setWrap(true);
+  sh.getRange(6, 1, 1, 3).setValues([PLANILLA_COLUMNAS.slice(0, 3).map(([t]) => t)]);
   sh.getRange('A7').setFormula(`=SEQUENCE(${FILAS_PLANILLA},1,($C$4-1)*${FILAS_PLANILLA}+1)`);
-  PLANILLA_COLUMNAS.forEach(([, , origen], i) => {
-    const r = sh.getRange(7, i + 1, FILAS_PLANILLA, 1);
-    if (origen) r.setFormula(`=IFERROR(INDEX(Movimientos!${origen}:${origen},MATCH($A7,Movimientos!$L:$L,0)),"")`);
-  });
+  ['A', 'I'].forEach((origen, i) => sh.getRange(7, i + 2, FILAS_PLANILLA, 1)
+    .setFormula(`=IFERROR(INDEX(Movimientos!${origen}:${origen},MATCH($A7,Movimientos!$L:$L,0)),"")`));
+  ordenarPlanilla_(sh);
   sh.getRange(`B7:B${fin}`).setNumberFormat('dd/mm/yyyy');
   sh.setRowHeights(7, FILAS_PLANILLA, 40);
   sh.getRange(6, 1, FILAS_PLANILLA + 1, n).setBorder(true, true, true, true, true, true)

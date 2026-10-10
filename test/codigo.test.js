@@ -71,3 +71,9 @@ test('consumo por área en los últimos meses', () => {
   assert.deepStrictEqual(r.meses, ['ago 2026', 'sep 2026', 'oct 2026']);
   assert.deepStrictEqual(r.filas, [['Admisión', 0, 4, 2], ['Referencias', 0, 0, 5]]);
 });
+
+test('planilla: la firma va junto al nombre de quien recibe', () => {
+  const titulos = n => [...g.columnasPlanilla(n)].map(c => c[0]);
+  assert.deepStrictEqual(titulos(1).slice(2, 4), ['Nombre de quien recibe', 'Firma de quien recibe']);
+  assert.strictEqual(titulos(1).length, 7);
+});
