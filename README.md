@@ -14,7 +14,7 @@ Registra cada movimiento por cajas y paquetes, mantiene el stock al día y numer
 
 ![Formulario de salida, de ingreso y confirmación del registro](docs/formulario.png)
 
-Las capturas de este documento usan datos ficticios.
+Las capturas de este documento usan datos ficticios (ver [Capturas](#capturas)).
 
 ## Contenido
 
@@ -25,6 +25,7 @@ Las capturas de este documento usan datos ficticios.
 - [Uso](#uso)
 - [Estructura](#estructura)
 - [Pruebas](#pruebas)
+- [Capturas](#capturas)
 - [Datos](#datos)
 - [Licencia](#licencia)
 
@@ -157,6 +158,7 @@ Todo se hace desde el menú <kbd>Papel Bond</kbd> de la hoja:
 ├── test
 │   └── codigo.test.js     Pruebas de la lógica pura
 └── docs                   Capturas de este documento
+    └── capturas           Páginas HTML que generan las capturas
 ```
 
 ## Pruebas
@@ -168,6 +170,25 @@ node --test
 ```
 
 GitHub Actions las ejecuta en cada push y pull request.
+
+## Capturas
+
+Cada captura de `docs/` se genera desde una página HTML de `docs/capturas/`, con datos ficticios:
+
+| Captura | Generador | Origen del diseño |
+| --- | --- | --- |
+| `formulario.png` | [`formulario.html`](docs/capturas/formulario.html) | Carga `src/Formulario.html` y simula las respuestas del servidor |
+| `resumen.png` | [`resumen.html`](docs/capturas/resumen.html) | Reproduce la hoja que dibuja `renderResumen()` |
+| `planilla.png` | [`planilla.html`](docs/capturas/planilla.html) | Reproduce la hoja que crea `crearPlanilla_()`, con un logo de ejemplo |
+
+Para regenerar una, se ejecuta desde la raíz del repositorio el comando anotado al inicio de su HTML, con Microsoft Edge o Chrome sin interfaz. Por ejemplo, el Resumen:
+
+```bash
+msedge --headless=new --hide-scrollbars --force-device-scale-factor=2 --window-size=736,1223 --screenshot=docs/resumen.png docs/capturas/resumen.html
+```
+
+> [!NOTE]
+> El generador del formulario usa el formulario real: tras un cambio, basta con volver a ejecutarlo. `resumen.html` y `planilla.html` copian el diseño a mano: si cambia el diseño de esas hojas en `Codigo.gs`, hay que ajustar también su HTML.
 
 ## Datos
 
