@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<!--
+  Captura de la hoja Resumen para el README (docs/resumen.png), con datos ficticios.
+  Imita la hoja que dibuja renderResumen() en src/Codigo.gs: columna A de 200 px, B a F de 85 px.
+  Para regenerarla (desde la raíz del repositorio, con Microsoft Edge o Chrome):
+    msedge --headless=new --hide-scrollbars --force-device-scale-factor=2 --window-size=736,1223 --screenshot=docs/resumen.png docs/capturas/resumen.html
+-->
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Resumen</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: #eef1f5; }
+  body { padding: 28px 29px 40px 28px; font-family: Arial, Helvetica, sans-serif; font-size: 12px; color: #202124; }
+  .hoja { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.12); padding: 23px 28px 22px 28px; width: 679px; }
+  table { border-collapse: collapse; table-layout: fixed; width: 625px; }
+  col.a { width: 200px; } col.n { width: 85px; }
+  td { height: 21px; padding: 0 3px; vertical-align: middle; white-space: nowrap; overflow: hidden; }
+  .titulo { background: #0b5394; color: #fff; font-size: 21px; font-weight: bold; height: 38px; text-align: center; }
+  .sub { color: #5f6368; height: 30px; }
+  .act { color: #5f6368; font-size: 11px; font-style: italic; text-align: right; }
+  .sep4 td { height: 8px; } .sep8 td { height: 10px; }
+  .tar { background: #f4f7fb; text-align: center; border-left: 1px solid #d0d7e2; border-right: 1px solid #d0d7e2; }
+  .tar.top { border-top: 1px solid #d0d7e2; } .tar.bot { border-bottom: 1px solid #d0d7e2; }
+  .etq { font-size: 11px; font-weight: bold; color: #5f6368; }
+  .val { font-size: 27px; font-weight: bold; height: 36px; }
+  .nota { font-size: 10.5px; color: #5f6368; }
+  .azul { color: #0b5394; } .ambar { color: #b45309; }
+  .editable { background: #fff8e1; }
+  .val.peq { font-size: 16px; font-weight: normal; color: #202124; }
+  .sec { font-size: 15px; font-weight: bold; color: #0b5394; border-bottom: 2px solid #0b5394; }
+  .gris { color: #5f6368; } .der { text-align: right; } .cen { text-align: center; } .neg { font-weight: bold; }
+  .fecha { background: #fff8e1; border: 1px solid #d0d7e2; text-align: center; }
+  .pista { font-size: 11px; font-style: italic; color: #5f6368; }
+  .enc td { background: #e8f0fe; font-weight: bold; }
+  .enc td + td { text-align: right; }
+  .dat td + td { text-align: right; }
+  .dat.z td { background: #f8fafc; }
+  .ult td { border-bottom: 1px solid #d0d7e2; }
+  td.barra { text-align: left !important; color: #0b5394; padding-left: 4px; }
+  .barra span { display: inline-block; height: 15px; background: #0b5394; vertical-align: middle; }
+</style>
+</head>
+<body>
+<div class="hoja">
+<table>
+  <colgroup><col class="a"><col class="n"><col class="n"><col class="n"><col class="n"><col class="n"></colgroup>
+  <tr><td colspan="6" class="titulo">Control de Papel Bond A4</td></tr>
+  <tr><td colspan="6" class="sub">Institución de Ejemplo · Oficina de Administración</td></tr>
+  <tr><td colspan="6" class="act">Actualizado: 10/10/2026 10:59</td></tr>
+  <tr class="sep4"><td colspan="6"></td></tr>
+  <tr>
+    <td colspan="2" class="tar top etq">STOCK ACTUAL</td>
+    <td colspan="2" class="tar top etq">PENDIENTES DE FIRMA</td>
+    <td colspan="2" class="tar top etq">ALERTA DE STOCK</td>
+  </tr>
+  <tr>
+    <td colspan="2" class="tar val azul">63 paquetes</td>
+    <td colspan="2" class="tar val ambar">9</td>
+    <td colspan="2" class="tar val peq editable">30 paquetes</td>
+  </tr>
+  <tr>
+    <td colspan="2" class="tar bot nota">6 caja(s) + 3 paq. · alcanza ~8 semana(s)</td>
+    <td colspan="2" class="tar bot nota">próximo: cargo N° 25 · planilla N° 2</td>
+    <td colspan="2" class="tar bot nota">avisa si quedan ≤ este valor</td>
+  </tr>
+  <tr class="sep8"><td colspan="6"></td></tr>
+  <tr><td colspan="6" class="sec">Período del reporte</td></tr>
+  <tr>
+    <td class="der gris">Desde</td><td class="fecha">01/07/2026</td>
+    <td class="der gris">Hasta</td><td class="fecha">10/10/2026</td>
+    <td class="der gris">Ingresos</td><td class="der neg">100 paq.</td>
+  </tr>
+  <tr>
+    <td colspan="4" class="pista">Cambia las fechas amarillas para ver otro período.</td>
+    <td class="der gris">Salidas</td><td class="der neg">89 paq.</td>
+  </tr>
+  <tr><td colspan="6"></td></tr>
+
+  <tr><td colspan="6" class="sec">Consumo por área</td></tr>
+  <tr class="enc"><td>Área</td><td>Paquetes</td><td>%</td><td colspan="3"></td></tr>
+  <tr class="dat"><td>Mesa de Partes</td><td>37</td><td>42%</td><td colspan="3" class="barra"><span style="width:119px"></span></td></tr>
+  <tr class="dat z"><td>Logística</td><td>20</td><td>22%</td><td colspan="3" class="barra"><span style="width:68px"></span></td></tr>
+  <tr class="dat"><td>Contabilidad</td><td>15</td><td>17%</td><td colspan="3" class="barra"><span style="width:51px"></span></td></tr>
+  <tr class="dat z"><td>Tesorería</td><td>7</td><td>8%</td><td colspan="3" class="barra"><span style="width:25px"></span></td></tr>
+  <tr class="dat"><td>Recursos Humanos</td><td>6</td><td>7%</td><td colspan="3" class="barra"><span style="width:17px"></span></td></tr>
+  <tr class="dat z ult"><td>Asesoría Legal</td><td>4</td><td>4%</td><td colspan="3" class="barra"><span style="width:17px"></span></td></tr>
+  <tr><td colspan="6"></td></tr>
+
+  <tr><td colspan="6" class="sec">Consumo por persona</td></tr>
+  <tr class="enc"><td>Persona</td><td>Paquetes</td><td>%</td><td colspan="3"></td></tr>
+  <tr class="dat"><td>Carmen Flores</td><td>37</td><td>42%</td><td colspan="3" class="barra"><span style="width:119px"></span></td></tr>
+  <tr class="dat z"><td>Luis Huamán</td><td>20</td><td>22%</td><td colspan="3" class="barra"><span style="width:68px"></span></td></tr>
+  <tr class="dat"><td>Rosa Quispe</td><td>15</td><td>17%</td><td colspan="3" class="barra"><span style="width:51px"></span></td></tr>
+  <tr class="dat z"><td>Pedro Rojas</td><td>7</td><td>8%</td><td colspan="3" class="barra"><span style="width:25px"></span></td></tr>
+  <tr class="dat"><td>Jorge Mamani</td><td>6</td><td>7%</td><td colspan="3" class="barra"><span style="width:17px"></span></td></tr>
+  <tr class="dat z ult"><td>Ana Torres</td><td>4</td><td>4%</td><td colspan="3" class="barra"><span style="width:17px"></span></td></tr>
+  <tr><td colspan="6"></td></tr>
+
+  <tr><td colspan="6" class="sec">Ingresos por origen</td></tr>
+  <tr class="enc"><td>Origen</td><td>Paquetes</td><td>%</td><td colspan="3"></td></tr>
+  <tr class="dat"><td>Distribuidora Ejemplo S.A.C.</td><td>80</td><td>80%</td><td colspan="3" class="barra"><span style="width:119px"></span></td></tr>
+  <tr class="dat z ult"><td>Oficina de Abastecimiento</td><td>20</td><td>20%</td><td colspan="3" class="barra"><span style="width:34px"></span></td></tr>
+  <tr><td colspan="6"></td></tr>
+
+  <tr><td colspan="6" class="sec">Mes a mes (últimos 12 meses, paquetes)</td></tr>
+  <tr class="enc"><td>Mes</td><td>Ingresos</td><td>Salidas</td><td>Saldo al cierre</td><td></td><td></td></tr>
+  <tr class="dat"><td>may 2026</td><td>40</td><td>22</td><td>18</td><td></td><td></td></tr>
+  <tr class="dat z"><td>jun 2026</td><td>50</td><td>16</td><td>52</td><td></td><td></td></tr>
+  <tr class="dat"><td>jul 2026</td><td>20</td><td>25</td><td>47</td><td></td><td></td></tr>
+  <tr class="dat z"><td>ago 2026</td><td>50</td><td>24</td><td>73</td><td></td><td></td></tr>
+  <tr class="dat"><td>sep 2026</td><td>0</td><td>23</td><td>50</td><td></td><td></td></tr>
+  <tr class="dat z ult"><td>oct 2026</td><td>30</td><td>17</td><td>63</td><td></td><td></td></tr>
+  <tr><td colspan="6"></td></tr>
+
+  <tr><td colspan="6" class="sec">Consumo por área (últimos 5 meses, paquetes)</td></tr>
+  <tr class="enc"><td>Área</td><td>jun 2026</td><td>jul 2026</td><td>ago 2026</td><td>sep 2026</td><td>oct 2026</td></tr>
+  <tr class="dat"><td>Mesa de Partes</td><td>6</td><td>12</td><td>8</td><td>7</td><td>10</td></tr>
+  <tr class="dat z"><td>Contabilidad</td><td>5</td><td>6</td><td>0</td><td>5</td><td>4</td></tr>
+  <tr class="dat"><td>Logística</td><td>0</td><td>4</td><td>10</td><td>6</td><td>0</td></tr>
+  <tr class="dat z"><td>Tesorería</td><td>3</td><td>0</td><td>4</td><td>0</td><td>3</td></tr>
+  <tr class="dat"><td>Asesoría Legal</td><td>2</td><td>0</td><td>2</td><td>2</td><td>0</td></tr>
+  <tr class="dat z ult"><td>Recursos Humanos</td><td>0</td><td>3</td><td>0</td><td>3</td><td>0</td></tr>
+</table>
+</div>
+</body>
+</html>
