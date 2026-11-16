@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<!--
+  Captura del formulario para el README (docs/formulario.png), con datos ficticios.
+  Carga el src/Formulario.html real y le simula google.script.run, así refleja cualquier cambio del formulario.
+  Para regenerarla (desde la raíz del repositorio, con Microsoft Edge o Chrome; el flag permite leer src/ desde file://):
+    msedge --headless=new --hide-scrollbars --allow-file-access-from-files --virtual-time-budget=3000 --force-device-scale-factor=2 --window-size=1364,775 --screenshot=docs/formulario.png docs/capturas/formulario.html
+-->
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Formulario</title>
+<style>
+  html, body { margin: 0; background: #eef1f5; font-family: Arial, Helvetica, sans-serif; }
+  .fila { display: flex; gap: 24px; padding: 28px 28px 0; }
+  .panel { width: 420px; }
+  .dialogo { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.12); overflow: hidden; }
+  .titulo { font-size: 16px; color: #202124; padding: 14px 16px 6px; }
+  iframe { display: block; width: 420px; height: 657px; border: 0; }
+  .pie { text-align: center; font-size: 13px; color: #5f6368; margin-top: 14px; }
+</style>
+</head>
+<body>
+<div class="fila" id="fila"></div>
+<script>
+  // Datos ficticios que devolvería el servidor (datosFormulario y registrar en Codigo.gs)
+  const STUB = `<script>
+    const DATOS = { paqCaja: 10, stock: 63, minimo: 30, custodio: 'Elena Vargas', proximoCargo: 25, filasPlanilla: 15,
+      lugares: [], personas: [], autorizadores: [] };
+    window.google = { script: { host: { close() {} }, get run() {
+      let ok = () => {};
+      const r = {
+        withSuccessHandler(f) { ok = f; return r; }, withFailureHandler() { return r; },
+        datosFormulario() { ok(DATOS); },
+        registrar(f) { ok({ tipo: f.tipo, cargo: 25, planilla: 2, cantidad: '3 paquetes', stock: 60 }); },
+      };
+      return r;
+    } } };
+  <\/script>`;
+
+  // Lo que se escribe en cada ventana después de cargar el formulario
+  const PASOS = {
+    salida: `$('fecha').value = '2026-10-10'; $('paquetes').value = 3; $('s_recibe').value = 'Ana Torres';
+      $('s_lugar').value = 'Asesoría Legal'; $('s_autoriza').value = 'Jefatura de Asesoría Legal';`,
+    ingreso: `modo('INGRESO'); $('fecha').value = '2026-10-10'; $('cajas').value = 5;
+      $('i_lugar').value = 'Distribuidora Ejemplo S.A.C.'; $('i_entrega').value = 'Repartidor';`,
+    confirmacion: `$('paquetes').value = 3; $('s_recibe').value = 'Ana Torres'; $('s_lugar').value = 'Asesoría Legal';
+      $('s_autoriza').value = 'Jefatura de Asesoría Legal'; guardar();`,
+  };
+  const PIES = { salida: 'Salida: muestra el cargo y la planilla que tocan', ingreso: 'Ingreso', confirmacion: 'Confirmación' };
+
+  const xhr = new XMLHttpRequest();
+  xhr.open('GET', '../../src/Formulario.html', false); // síncrono: el formulario está listo antes de la captura
+  xhr.send();
+  const formulario = xhr.responseText;
+
+  for (const clave of Object.keys(PASOS)) {
+    const panel = document.createElement('div');
+    panel.className = 'panel';
+    panel.innerHTML = '<div class="dialogo"><div class="titulo">Movimiento de papel bond</div></div><div class="pie"></div>';
+    const marco = document.createElement('iframe');
+    marco.srcdoc = formulario.replace('<head>', '<head>' + STUB)
+      .replace('</body>', `<script>${PASOS[clave]}<\/script></body>`);
+    panel.querySelector('.dialogo').appendChild(marco);
+    panel.querySelector('.pie').textContent = PIES[clave];
+    document.getElementById('fila').appendChild(panel);
+  }
+</script>
+</body>
+</html>
