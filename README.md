@@ -54,6 +54,7 @@ flowchart LR
 - Muestra en el formulario, antes de registrar, el N° de cargo y la planilla que corresponden a la entrega.
 - Genera la planilla en PDF A4 vertical, lista para imprimir y llenar a mano.
 - Sube el escaneo de la planilla firmada a Drive y marca como firmadas sus entregas.
+- Estima cuántas semanas alcanza el stock al ritmo de las salidas de los últimos 30 días y avisa cuando baja del mínimo configurado.
 - Calcula reportes por período: consumo por área y por persona, ingresos por origen, mes a mes y por área en los últimos meses.
 - Exporta el Resumen a PDF en Drive, en una hoja A4 vertical.
 - Protege la hoja de movimientos con aviso ante ediciones manuales.
@@ -71,6 +72,14 @@ La configuración inicial crea tres hojas:
 ### Resumen
 
 El script la redibuja tras cada registro o edición. Las celdas amarillas son la alerta de stock y las fechas del período.
+
+| Tarjeta | Muestra |
+| --- | --- |
+| Stock actual | Paquetes disponibles, su equivalente en cajas y cuántas semanas alcanzan. En rojo si quedan tantos paquetes como la alerta o menos |
+| Pendientes de firma | Salidas sin la casilla Firmado marcada (en ámbar si hay alguna, en verde si no) y el próximo N° de cargo y de planilla |
+| Alerta de stock | Mínimo en paquetes; se edita en la celda amarilla (5 por defecto) |
+
+Debajo de las tarjetas están los ingresos y salidas del período elegido y los reportes, uno debajo de otro, con el mismo diseño que el PDF exportado.
 
 <img src="docs/resumen.png" alt="Hoja Resumen con stock, pendientes de firma y reportes por período" width="620">
 
@@ -152,7 +161,7 @@ Todo se hace desde el menú <kbd>Papel Bond</kbd> de la hoja:
 
 ## Pruebas
 
-Cubren la lógica pura: stock, cargos, planillas, cantidades y agregaciones de los reportes. Requieren Node.js (probado con la versión 24), sin dependencias:
+Cubren la lógica pura: stock, cobertura del stock, cargos, planillas, cantidades y agregaciones de los reportes. Requieren Node.js (probado con la versión 24), sin dependencias:
 
 ```bash
 node --test
