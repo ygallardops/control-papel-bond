@@ -499,6 +499,8 @@ function columnasPlanilla(n) {
 // No toca Movimientos ni el formato de la hoja: la planilla es solo una vista.
 function ordenarPlanilla_(sh) {
   const cols = columnasPlanilla(Number(sh.getRange('C4').getValue()) || 1), n = cols.length;
+  const actuales = sh.getRange(6, 4, 1, n - 3).getValues()[0];
+  if (cols.slice(3).every(([t], i) => actuales[i] === t)) return; // ya está en ese orden: respeta los ajustes manuales
   sh.getRange(6, 4, 1, n - 3).setValues([cols.slice(3).map(([t]) => t)]);
   sh.getRange(7, 4, FILAS_PLANILLA, n - 3).clearContent();
   cols.forEach(([, ancho, origen], i) => {
