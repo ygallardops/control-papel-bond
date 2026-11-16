@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<!--
+  Captura de la hoja Planilla para el README (docs/planilla.png), con datos y logo ficticios.
+  Imita la planilla de crearPlanilla_() en src/Codigo.gs: columnas de 35, 75, 190, 150, 110, 85 y 105 px.
+  Para regenerarla (desde la raíz del repositorio, con Microsoft Edge o Chrome):
+    msedge --headless=new --hide-scrollbars --force-device-scale-factor=2 --window-size=862,905 --screenshot=docs/planilla.png docs/capturas/planilla.html
+-->
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Planilla</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: #eef1f5; }
+  body { padding: 28px 29px 31px 28px; font-family: Arial, Helvetica, sans-serif; font-size: 13.3px; color: #000; }
+  .hoja { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.12); width: 805px; padding: 23.5px 27.5px 22.5px; }
+  table { border-collapse: collapse; table-layout: fixed; width: 750px; }
+  td { height: 21px; padding: 0 3px; vertical-align: bottom; white-space: nowrap; overflow: hidden; }
+  .logo { vertical-align: middle; text-align: center; padding: 0; }
+  .inst { font-size: 18.7px; font-weight: bold; }
+  .ofi { font-size: 12px; height: 32px; }
+  .neg { font-weight: bold; }
+  .num { background: #fff2cc; font-weight: bold; }
+  .instr { font-size: 10.7px; font-style: italic; }
+  .t td { border: 1px solid #000; font-size: 12px; vertical-align: middle; white-space: normal; line-height: 14px; }
+  .enc td { background: #d9e2f3; font-weight: bold; height: 21px; }
+  .fila td { height: 40px; }
+  .fila td:first-child { text-align: right; }
+  .pie { font-size: 13.3px; }
+</style>
+</head>
+<body>
+<div class="hoja">
+<table>
+  <colgroup>
+    <col style="width:35px"><col style="width:75px"><col style="width:190px"><col style="width:150px">
+    <col style="width:110px"><col style="width:85px"><col style="width:105px">
+  </colgroup>
+  <tr>
+    <td colspan="2" rowspan="3" class="logo">
+      <!-- Logo genérico de ejemplo -->
+      <svg width="96" height="62" viewBox="0 0 96 62" xmlns="http://www.w3.org/2000/svg" aria-label="Logo de ejemplo">
+        <rect x="2" y="9" width="44" height="44" rx="9" fill="#0b5394"/>
+        <path d="M12 41h24M15 41V27M21 41V27M27 41V27M33 41V27M11 27h26l-13-8z" stroke="#fff" stroke-width="2.6" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+        <text x="52" y="29" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="#0b5394">LOGO</text>
+        <text x="52" y="43" font-family="Arial, sans-serif" font-size="9" fill="#5f6368">de ejemplo</text>
+      </svg>
+    </td>
+    <td colspan="5" class="inst">Institución de Ejemplo</td>
+  </tr>
+  <tr><td colspan="5" class="ofi">Oficina de Administración</td></tr>
+  <tr><td colspan="5" class="neg">PLANILLA DE CARGOS – ENTREGA DE PAPEL BOND A4</td></tr>
+  <tr><td colspan="2" class="neg">Planilla N°</td><td class="num">2</td><td colspan="4"></td></tr>
+  <tr><td colspan="7" class="instr">Quien recibe escribe su nombre y la cantidad, y firma en la fila del N° de cargo que indica el formulario.</td></tr>
+  <tbody class="t">
+    <tr class="enc"><td>N°</td><td>Fecha</td><td>Nombre de quien recibe</td><td>Firma de quien recibe</td><td>Área</td><td>Cantidad</td><td>Entregó</td></tr>
+    <tr class="fila"><td>16</td><td>27/08/2026</td><td>Pedro Rojas</td><td></td><td>Tesorería</td><td>4 paquetes</td><td>Elena Vargas</td></tr>
+    <tr class="fila"><td>17</td><td>02/09/2026</td><td>Carmen Flores</td><td></td><td>Mesa de Partes</td><td>7 paquetes</td><td>Elena Vargas</td></tr>
+    <tr class="fila"><td>18</td><td>09/09/2026</td><td>Rosa Quispe</td><td></td><td>Contabilidad</td><td>5 paquetes</td><td>Elena Vargas</td></tr>
+    <tr class="fila"><td>19</td><td>16/09/2026</td><td>Jorge Mamani</td><td></td><td>Recursos Humanos</td><td>3 paquetes</td><td>Elena Vargas</td></tr>
+    <tr class="fila"><td>20</td><td>23/09/2026</td><td>Luis Huamán</td><td></td><td>Logística</td><td>6 paquetes</td><td>Elena Vargas</td></tr>
+    <tr class="fila"><td>21</td><td>30/09/2026</td><td>Ana Torres</td><td></td><td>Asesoría Legal</td><td>2 paquetes</td><td>Elena Vargas</td></tr>
+    <tr class="fila"><td>22</td><td>02/10/2026</td><td>Carmen Flores</td><td></td><td>Mesa de Partes</td><td>1 caja</td><td>Elena Vargas</td></tr>
+    <tr class="fila"><td>23</td><td>06/10/2026</td><td>Rosa Quispe</td><td></td><td>Contabilidad</td><td>4 paquetes</td><td>Elena Vargas</td></tr>
+    <tr class="fila"><td>24</td><td>08/10/2026</td><td>Pedro Rojas</td><td></td><td>Tesorería</td><td>3 paquetes</td><td>Elena Vargas</td></tr>
+    <tr class="fila"><td>25</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+    <tr class="fila"><td>26</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+    <tr class="fila"><td>27</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+    <tr class="fila"><td>28</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+    <tr class="fila"><td>29</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+    <tr class="fila"><td>30</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+  </tbody>
+  <tr><td colspan="7"></td></tr>
+  <tr><td colspan="7"></td></tr>
+  <tr><td colspan="7" class="pie">Revisado por (responsable del papel): ______________________________&nbsp;&nbsp;&nbsp;&nbsp; Firma: ____________________</td></tr>
+</table>
+</div>
+</body>
+</html>
