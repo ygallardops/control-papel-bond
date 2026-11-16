@@ -294,6 +294,14 @@ function areasPorMes(filas, hoy, n) {
   };
 }
 
+// Semanas que alcanza el stock al ritmo de salidas de los últimos 30 días (null si no hubo salidas)
+function coberturaSemanas(filas, stock, hoy) {
+  const desde = new Date(hoy.getTime() - 30 * 24 * 3600 * 1000);
+  const salidas = filas.filter(r => r[C.TIPO] === 'SALIDA' && r[C.FECHA] instanceof Date && r[C.FECHA] > desde && r[C.FECHA] <= hoy)
+    .reduce((t, r) => t + Number(r[C.TOTAL]), 0);
+  return salidas ? stock / (salidas / 30 * 7) : null;
+}
+
 function cantidadTexto(cajas, paquetes) {
   const n = (x, s, p) => `${x} ${x === 1 ? s : p}`;
   return [cajas && n(cajas, 'caja', 'cajas'), paquetes && n(paquetes, 'paquete', 'paquetes')].filter(Boolean).join(' + ');
@@ -322,6 +330,7 @@ function filasMovimientos_(sh = hoja_('Movimientos')) {
 const COLOR = {
   primario: '#0b5394', suave: '#e8f0fe', tarjeta: '#f4f7fb', borde: '#d0d7e2', gris: '#5f6368',
   alerta: '#fde8e8', alertaTexto: '#a50e0e', editable: '#fff8e1', zebra: '#f8fafc',
+  pendiente: '#b45309', ok: '#137333',
 };
 
 function renderResumen() {
@@ -335,7 +344,7 @@ function renderResumen() {
     return v instanceof Date && v.getFullYear() >= 2000 ? (r.getFormula() || v) : porDefecto;
   };
   const minLeido = sh.getRange(R.MIN).getValue();
-  const min = typeof minLeido === 'number' ? minLeido : 10;
+  const min = typeof minLeido === 'number' ? minLeido : 5;
   const desde = fecha(R.DESDE, '=EOMONTH(TODAY(),-1)+1'), hasta = fecha(R.HASTA, '=TODAY()');
 
   sh.clear();
@@ -348,7 +357,7 @@ function renderResumen() {
 
   // Encabezado
   sh.getRange('A1:F1').merge().setValue('Control de Papel Bond A4').setBackground(COLOR.primario)
-    .setFontColor('#ffffff').setFontSize(16).setFontWeight('bold');
+    .setFontColor('#ffffff').setFontSize(16).setFontWeight('bold').setHorizontalAlignment('center');
   sh.setRowHeight(1, 38);
   sh.getRange('A2:F2').merge().setValue(`${INSTITUCION} · ${OFICINA}`).setFontColor(COLOR.gris).setWrap(true);
   sh.setRowHeight(2, 30);
@@ -361,11 +370,19 @@ function renderResumen() {
   const stock = calcularStock(filas);
   const pendientes = filas.filter(r => r[C.TIPO] === 'SALIDA' && r[C.FIRMADO] !== true).length;
   const bajo = stock <= min;
+  const semanas = coberturaSemanas(filas, stock, new Date());
+  const alcance = semanas === null ? 'sin salidas en 30 días' :
+    semanas < 1 ? 'alcanza menos de 1 semana' : `alcanza ~${Math.round(semanas)} semana(s)`;
   tarjeta_(sh, 1, 'STOCK ACTUAL', stock,
-    `${Math.floor(stock / PAQ_POR_CAJA)} caja(s) + ${stock % PAQ_POR_CAJA} paquete(s)` + (bajo ? ' · STOCK BAJO' : ''),
+    `${Math.floor(stock / PAQ_POR_CAJA)} caja(s) + ${stock % PAQ_POR_CAJA} paq. · ${alcance}` + (bajo ? ' · STOCK BAJO' : ''),
     bajo ? COLOR.alerta : COLOR.tarjeta, bajo ? COLOR.alertaTexto : COLOR.primario);
-  tarjeta_(sh, 3, 'PENDIENTES DE FIRMA', pendientes, 'entregas sin firma registrada', COLOR.tarjeta, COLOR.primario);
-  tarjeta_(sh, 5, 'ALERTA DE STOCK', min, 'avisa si quedan ≤ (editable)', COLOR.editable, '#202124');
+  const proximo = siguienteCargo(filas);
+  tarjeta_(sh, 3, 'PENDIENTES DE FIRMA', pendientes,
+    `próximo: cargo N° ${proximo} · planilla N° ${Math.ceil(proximo / FILAS_PLANILLA)}`,
+    COLOR.tarjeta, pendientes ? COLOR.pendiente : COLOR.ok);
+  // La alerta es un ajuste, no un indicador: tarjeta neutra, número pequeño y solo la celda editable en amarillo
+  tarjeta_(sh, 5, 'ALERTA DE STOCK', min, 'avisa si quedan ≤ este valor', COLOR.tarjeta, '#202124');
+  sh.getRange(R.MIN).setFontSize(12).setFontWeight('normal').setBackground(COLOR.editable);
   sh.getRange('A6').setNumberFormat('0 "paquetes"');
   sh.getRange(R.MIN).setNumberFormat('0 "paquetes"');
   sh.setRowHeight(6, 36);

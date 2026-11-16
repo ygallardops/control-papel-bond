@@ -77,3 +77,10 @@ test('planilla: la firma va junto al nombre de quien recibe', () => {
   assert.deepStrictEqual(titulos(1).slice(2, 4), ['Nombre de quien recibe', 'Firma de quien recibe']);
   assert.strictEqual(titulos(1).length, 7);
 });
+
+test('cobertura del stock según las salidas de los últimos 30 días', () => {
+  // datos: salidas de 4, 2 y 5 paquetes en los 30 días previos al 04/10/2026 → 11 paq./30 días
+  const s = g.coberturaSemanas(datos, 15, D(2026, 9, 4, 18));
+  assert.ok(Math.abs(s - 15 / (11 / 30 * 7)) < 1e-9);
+  assert.strictEqual(g.coberturaSemanas(datos, 15, D(2027, 5, 1)), null);
+});
