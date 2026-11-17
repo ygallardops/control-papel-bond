@@ -2,6 +2,7 @@
 
 const PAQ_POR_CAJA = 10;    // paquetes (de 500 hojas) por caja
 const FILAS_PLANILLA = 15;  // filas de firma por planilla A4
+const ALERTA_POR_DEFECTO = 5; // paquetes, si la celda de alerta del Resumen no tiene un número
 // Configura estos tres valores antes de la "Configuración inicial"
 const INSTITUCION = 'Nombre de la institución';
 const OFICINA = 'Nombre de la oficina';
@@ -26,8 +27,6 @@ function onOpen() {
     .addSeparator()
     .addItem('Configuración inicial (solo una vez)', 'configurar')
     .addToUi();
-  const mov = SpreadsheetApp.getActive().getSheetByName('Movimientos');
-  if (mov && !mov.getProtections(SpreadsheetApp.ProtectionType.SHEET).length) protegerMovimientos_(mov);
   renderResumen(); // "Actualizado" y el período por defecto quedan al día
 }
 
@@ -54,7 +53,7 @@ function datosFormulario() {
     stock: calcularStock(filas),
     proximoCargo: siguienteCargo(filas),
     filasPlanilla: FILAS_PLANILLA,
-    minimo: Number(hoja_('Resumen').getRange(R.MIN).getValue()) || 0,
+    minimo: alertaMinima_(hoja_('Resumen')),
     custodio: PropertiesService.getUserProperties().getProperty('custodio') || '',
     lugares: unicos(C.LUGAR),
     personas: [...new Set([...unicos(C.ENTREGA), ...unicos(C.RECIBE)])].sort(),
@@ -65,6 +64,7 @@ function datosFormulario() {
 function registrar(f) {
   const tipo = ['INGRESO', 'SALIDA'].includes(f.tipo) ? f.tipo : null;
   if (!tipo) throw new Error('Tipo de movimiento inválido.');
+  const salida = tipo === 'SALIDA';
   const cajas = Number(f.cajas) || 0, paquetes = Number(f.paquetes) || 0;
   if (![cajas, paquetes].every(n => Number.isInteger(n) && n >= 0) || cajas + paquetes === 0)
     throw new Error('Indica una cantidad válida (cajas y/o paquetes enteros, mayor a cero).');
@@ -74,20 +74,20 @@ function registrar(f) {
 
   // Texto libre: se recorta y se evita que se interprete como fórmula
   const t = k => String(f[k] || '').trim().replace(/^[=+\-@]/, "'$&");
-  const requeridos = tipo === 'SALIDA'
+  const requeridos = salida
     ? { recibe: 'Persona que recibe', lugar: 'Área', autoriza: 'Autorizado por', entrega: 'Entregado por' }
     : { lugar: 'Origen', entrega: 'Persona que entrega', recibe: 'Recibido por' };
   for (const k in requeridos) if (!t(k)) throw new Error(`Falta completar: ${requeridos[k]}.`);
 
-  const lock = LockService.getDocumentLock();
-  lock.waitLock(15000); // varios usuarios: evita cargos duplicados
+  const lock = LockService.getDocumentLock(); // varios usuarios: evita cargos duplicados
+  if (!lock.tryLock(15000)) throw new Error('Otra persona está registrando en este momento. Intenta de nuevo.');
+  let resultado;
   try {
     const sh = hoja_('Movimientos');
     const filas = filasMovimientos_(sh);
     const total = cajas * PAQ_POR_CAJA + paquetes;
     const stock = calcularStock(filas);
-    if (tipo === 'SALIDA' && total > stock) throw new Error(`Stock insuficiente: solo hay ${stock} paquete(s).`);
-    const salida = tipo === 'SALIDA';
+    if (salida && total > stock) throw new Error(`Stock insuficiente: solo hay ${stock} paquete(s).`);
     const cargo = salida ? siguienteCargo(filas) : '';
 
     sh.appendRow([fecha, tipo, cajas, paquetes, total, cantidadTexto(cajas, paquetes), t('lugar'), t('entrega'),
@@ -95,9 +95,7 @@ function registrar(f) {
       Session.getActiveUser().getEmail(), new Date()]);
     if (salida) sh.getRange(sh.getLastRow(), C.FIRMADO + 1).insertCheckboxes();
     PropertiesService.getUserProperties().setProperty('custodio', salida ? t('entrega') : t('recibe'));
-    renderResumen();
-
-    return {
+    resultado = {
       tipo, cargo, cantidad: cantidadTexto(cajas, paquetes),
       planilla: salida ? Math.ceil(cargo / FILAS_PLANILLA) : '',
       stock: stock + (salida ? -total : total),
@@ -105,6 +103,8 @@ function registrar(f) {
   } finally {
     lock.releaseLock();
   }
+  renderResumen(); // fuera del bloqueo: redibujar tarda y no debe hacer esperar a otro registro
+  return resultado;
 }
 
 function irPlanillaActual() {
@@ -114,20 +114,21 @@ function irPlanillaActual() {
   sh.activate();
 }
 
-// PDF de la planilla que muestra la hoja (celda Planilla N°), listo para imprimir: A4 vertical, sin cuadrícula ni notas
-function urlPlanillaPdf_() {
-  const ss = SpreadsheetApp.getActive(), sh = hoja_('Planilla');
+// Exportación a PDF A4 vertical de las primeras `filas` × `columnas` de una hoja, sin cuadrícula ni notas
+function urlPdf_(sh, filas, columnas, margen, numerarPaginas) {
   SpreadsheetApp.flush();
-  return `https://docs.google.com/spreadsheets/d/${ss.getId()}/export?format=pdf&gid=${sh.getSheetId()}` +
-    `&r1=0&c1=0&r2=${6 + FILAS_PLANILLA + 3}&c2=${PLANILLA_COLUMNAS.length}` +
-    '&size=A4&portrait=true&fitw=true&gridlines=false&printnotes=false&printtitle=false&sheetnames=false' +
-    '&pagenum=UNDEFINED&horizontal_alignment=CENTER&top_margin=0.4&bottom_margin=0.4&left_margin=0.4&right_margin=0.4';
+  return `https://docs.google.com/spreadsheets/d/${sh.getParent().getId()}/export?format=pdf&gid=${sh.getSheetId()}` +
+    `&r1=0&c1=0&r2=${filas}&c2=${columnas}&size=A4&portrait=true&fitw=true&gridlines=false&printnotes=false` +
+    `&printtitle=false&sheetnames=false&pagenum=${numerarPaginas ? 'CENTER' : 'UNDEFINED'}&horizontal_alignment=CENTER` +
+    ['top', 'bottom', 'left', 'right'].map(lado => `&${lado}_margin=${margen}`).join('');
 }
 
+// PDF de la planilla que muestra la hoja (celda Planilla N°), listo para imprimir
 function imprimirPlanilla() {
   const sh = hoja_('Planilla'), n = sh.getRange('C4').getValue();
   ordenarPlanilla_(sh);
-  dialogoEnlace_('Imprimir planilla', `Abrir la planilla N° ${n} en PDF para imprimir`, urlPlanillaPdf_());
+  dialogoEnlace_('Imprimir planilla', `Abrir la planilla N° ${n} en PDF para imprimir`,
+    urlPdf_(sh, 6 + FILAS_PLANILLA + 3, PLANILLA_COLUMNAS.length, 0.4, false));
 }
 
 // Apps Script no abre pestañas directamente: se intenta con window.open y queda el enlace por si el navegador lo bloquea
@@ -150,12 +151,7 @@ function exportarReportePdf() {
   const [desde, hasta] = [R.DESDE, R.HASTA].map(a => sh.getRange(a).getValue());
   if (!(desde instanceof Date) || !(hasta instanceof Date))
     throw new Error('Revisa las fechas "desde" y "hasta" en la hoja Resumen.');
-  SpreadsheetApp.flush();
-  const url = `https://docs.google.com/spreadsheets/d/${ss.getId()}/export?format=pdf&gid=${sh.getSheetId()}` +
-    `&r1=0&c1=0&r2=${sh.getLastRow()}&c2=6&size=A4&portrait=true&fitw=true&gridlines=false&printtitle=false` +
-    '&sheetnames=false&pagenum=CENTER&horizontal_alignment=CENTER' +
-    '&top_margin=0.5&bottom_margin=0.5&left_margin=0.5&right_margin=0.5';
-  const resp = UrlFetchApp.fetch(url,
+  const resp = UrlFetchApp.fetch(urlPdf_(sh, sh.getLastRow(), 6, 0.5, true),
     { headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() }, muteHttpExceptions: true });
   if (resp.getResponseCode() !== 200) throw new Error(`No se pudo generar el PDF (código ${resp.getResponseCode()}).`);
   const f = d => Utilities.formatDate(d, ss.getSpreadsheetTimeZone(), 'dd-MM-yyyy');
@@ -207,7 +203,6 @@ function subirEscaneo(planilla, archivo) {
   const blob = Utilities.newBlob(Utilities.base64Decode(archivo.base64), archivo.tipo, `Planilla N° ${planilla}${ext}`);
   const url = carpeta_('carpetaEscaneos', 'Escaneos - Planillas Papel Bond').createFile(blob).getUrl();
 
-  sh.getRange(1, C.ESCANEO + 1).setValue('Escaneo planilla'); // por si la hoja se creó antes de esta columna
   indices.forEach(i => {
     sh.getRange(i + 2, C.FIRMADO + 1).setValue(true);
     sh.getRange(i + 2, C.ESCANEO + 1).setValue(url);
@@ -276,7 +271,7 @@ function mesAMes(filas, hoy, n) {
     const suma = (tipo, desde) => datadas.filter(r => r[C.TIPO] === tipo && r[C.FECHA] >= desde && r[C.FECHA] < fin)
       .reduce((s, r) => s + Number(r[C.TOTAL]), 0);
     salida.push([`${MESES[ini.getMonth()]} ${ini.getFullYear()}`, suma('INGRESO', ini), suma('SALIDA', ini),
-      suma('INGRESO', new Date(0)) - suma('SALIDA', new Date(0))]);
+      calcularStock(datadas.filter(r => r[C.FECHA] < fin))]);
   }
   return salida;
 }
@@ -321,6 +316,11 @@ function protegerMovimientos_(sh) {
     .setDescription('Registra con el menú Papel Bond. Edita a mano solo para corregir errores.');
 }
 
+function alertaMinima_(resumen) {
+  const v = resumen.getRange(R.MIN).getValue();
+  return typeof v === 'number' ? v : ALERTA_POR_DEFECTO;
+}
+
 function filasMovimientos_(sh = hoja_('Movimientos')) {
   return sh.getDataRange().getValues().slice(1);
 }
@@ -343,8 +343,7 @@ function renderResumen() {
     const r = sh.getRange(a), v = r.getValue();
     return v instanceof Date && v.getFullYear() >= 2000 ? (r.getFormula() || v) : porDefecto;
   };
-  const minLeido = sh.getRange(R.MIN).getValue();
-  const min = typeof minLeido === 'number' ? minLeido : 5;
+  const min = alertaMinima_(sh);
   const desde = fecha(R.DESDE, '=EOMONTH(TODAY(),-1)+1'), hasta = fecha(R.HASTA, '=TODAY()');
 
   sh.clear();
@@ -523,9 +522,13 @@ function ordenarPlanilla_(sh) {
   cols.forEach(([, ancho, origen], i) => {
     if (i < 3) return;
     sh.setColumnWidth(i + 1, ancho);
-    if (origen) sh.getRange(7, i + 1, FILAS_PLANILLA, 1)
-      .setFormula(`=IFERROR(INDEX(Movimientos!${origen}:${origen},MATCH($A7,Movimientos!$L:$L,0)),"")`);
+    if (origen) sh.getRange(7, i + 1, FILAS_PLANILLA, 1).setFormula(formulaMovimientos_(origen));
   });
+}
+
+// Trae a la fila de la planilla el dato de Movimientos (columna `col`) del cargo de su columna A
+function formulaMovimientos_(col) {
+  return `=IFERROR(INDEX(Movimientos!${col}:${col},MATCH($A7,Movimientos!$L:$L,0)),"")`;
 }
 
 function crearPlanilla_(ss) {
@@ -551,8 +554,7 @@ function formatearPlanilla_(sh) {
   sh.getRange(6, 1, 1, n).setFontWeight('bold').setBackground('#d9e2f3').setWrap(true);
   sh.getRange(6, 1, 1, 3).setValues([PLANILLA_COLUMNAS.slice(0, 3).map(([t]) => t)]);
   sh.getRange('A7').setFormula(`=SEQUENCE(${FILAS_PLANILLA},1,($C$4-1)*${FILAS_PLANILLA}+1)`);
-  ['A', 'I'].forEach((origen, i) => sh.getRange(7, i + 2, FILAS_PLANILLA, 1)
-    .setFormula(`=IFERROR(INDEX(Movimientos!${origen}:${origen},MATCH($A7,Movimientos!$L:$L,0)),"")`));
+  ['A', 'I'].forEach((origen, i) => sh.getRange(7, i + 2, FILAS_PLANILLA, 1).setFormula(formulaMovimientos_(origen)));
   ordenarPlanilla_(sh);
   sh.getRange(`B7:B${fin}`).setNumberFormat('dd/mm/yyyy');
   sh.setRowHeights(7, FILAS_PLANILLA, 40);
