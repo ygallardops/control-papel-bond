@@ -54,7 +54,7 @@ flowchart LR
 - Rechaza una salida mayor al stock disponible y evita cargos duplicados cuando registran varias personas a la vez.
 - Muestra en el formulario, antes de registrar, el N° de cargo y la planilla que corresponden a la entrega.
 - Genera la planilla en PDF A4 vertical, lista para imprimir y llenar a mano.
-- Sube el escaneo de la planilla firmada a Drive y marca como firmadas sus entregas.
+- Sube el escaneo de la planilla firmada a una carpeta compartida de Drive, marca como firmadas sus entregas y muestra en la planilla si ya tiene escaneo.
 - Estima cuántas semanas alcanza el stock al ritmo de las salidas de los últimos 30 días y avisa cuando baja del mínimo configurado.
 - Calcula reportes por período: consumo por área y por persona, ingresos por origen, mes a mes y por área en los últimos meses.
 - Exporta el Resumen a PDF en Drive, en una hoja A4 vertical.
@@ -101,6 +101,7 @@ Se imprime en blanco para llenarla a mano. En pantalla, cada fila se completa co
    | `INSTITUCION` | Nombre que aparece en el Resumen y en la planilla |
    | `OFICINA` | Oficina responsable del papel |
    | `MANUAL_URL` | Enlace a un manual de uso compartido (opcional) |
+   | `CARPETA_ESCANEOS_ID` | Id de la carpeta de Drive para los escaneos, compartida como Editor con quienes los suben (opcional; vacío, cada persona los guarda en su propio Drive) |
 
 4. Recargar la hoja y ejecutar <kbd>Papel Bond</kbd> → <kbd>Configuración inicial</kbd>: pide el stock inicial en paquetes y crea las hojas.
 5. Opcional: insertar el logo de la institución en la celda superior izquierda de la hoja Planilla.
@@ -139,7 +140,7 @@ Todo se hace desde el menú <kbd>Papel Bond</kbd> de la hoja:
 | Registrar movimiento | Abre el formulario de salida o ingreso |
 | Ir a la planilla actual | Muestra la planilla que se está llenando |
 | Imprimir planilla | Abre en PDF la planilla que muestra la hoja |
-| Subir escaneo de planilla firmada | Guarda el escaneo (PDF o imagen, máx. 10 MB) en Drive y marca sus entregas como firmadas |
+| Subir escaneo de planilla firmada | Guarda el escaneo (PDF o imagen, máx. 10 MB) en la carpeta de escaneos y marca sus entregas como firmadas |
 | Actualizar resumen | Redibuja la hoja Resumen |
 | Exportar reporte a PDF | Guarda en Drive el Resumen del período elegido |
 | Manual de uso | Abre el enlace configurado en `MANUAL_URL` |

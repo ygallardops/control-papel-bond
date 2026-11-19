@@ -7,6 +7,9 @@ const ALERTA_POR_DEFECTO = 5; // paquetes, si la celda de alerta del Resumen no 
 const INSTITUCION = 'Nombre de la institución';
 const OFICINA = 'Nombre de la oficina';
 const MANUAL_URL = ''; // enlace al manual de uso (por ejemplo, un Google Doc compartido)
+// Id de la carpeta de Drive donde se guardan los escaneos, compartida como Editor con quienes los suben.
+// Vacío: cada persona los guarda en una carpeta de su propio Drive.
+const CARPETA_ESCANEOS_ID = '';
 const ENCABEZADOS =['Fecha', 'Tipo', 'Cajas', 'Paquetes', 'Total paquetes', 'Cantidad', 'Origen / Área',
   'Entregado por', 'Recibido por', 'Autorizado por', 'Medio', 'Cargo N°', 'Firmado', 'Registrado por', 'Registrado el',
   'Escaneo planilla'];
@@ -201,7 +204,7 @@ function subirEscaneo(planilla, archivo) {
   const punto = archivo.nombre.lastIndexOf('.');
   const ext = punto > 0 ? archivo.nombre.slice(punto) : '';
   const blob = Utilities.newBlob(Utilities.base64Decode(archivo.base64), archivo.tipo, `Planilla N° ${planilla}${ext}`);
-  const url = carpeta_('carpetaEscaneos', 'Escaneos - Planillas Papel Bond').createFile(blob).getUrl();
+  const url = carpetaEscaneos_().createFile(blob).getUrl();
 
   indices.forEach(i => {
     sh.getRange(i + 2, C.FIRMADO + 1).setValue(true);
@@ -211,8 +214,18 @@ function subirEscaneo(planilla, archivo) {
   return { filas: indices.length };
 }
 
+function carpetaEscaneos_() {
+  if (!CARPETA_ESCANEOS_ID) return carpeta_('carpetaEscaneos', 'Escaneos - Planillas Papel Bond');
+  try {
+    return DriveApp.getFolderById(CARPETA_ESCANEOS_ID);
+  } catch (e) {
+    throw new Error('No tienes acceso a la carpeta de escaneos. Pide a quien administra la hoja que te la comparta como Editor.');
+  }
+}
+
+// Carpeta propia de cada usuario en su Drive (por eso en sus propiedades: una carpeta de otra persona no le sirve)
 function carpeta_(clave, nombre) {
-  const props = PropertiesService.getDocumentProperties();
+  const props = PropertiesService.getUserProperties();
   const id = props.getProperty(clave);
   if (id) {
     try {
@@ -526,6 +539,10 @@ function ordenarPlanilla_(sh) {
   });
 }
 
+// Enlace al escaneo de la planilla en pantalla (columna P de su primer cargo), o "Sin escaneo"
+const FORMULA_ESCANEO = '=IFERROR(IF(INDEX(Movimientos!P:P,MATCH($A$7,Movimientos!$L:$L,0))="","Sin escaneo",' +
+  'HYPERLINK(INDEX(Movimientos!P:P,MATCH($A$7,Movimientos!$L:$L,0)),"Ver escaneo")),"Sin escaneo")';
+
 // Trae a la fila de la planilla el dato de Movimientos (columna `col`) del cargo de su columna A
 function formulaMovimientos_(col) {
   return `=IFERROR(INDEX(Movimientos!${col}:${col},MATCH($A7,Movimientos!$L:$L,0)),"")`;
@@ -541,6 +558,8 @@ function crearPlanilla_(ss) {
   sh.setRowHeight(2, 32);
   sh.getRange('A4:B4').merge().setValue('Planilla N°').setFontWeight('bold');
   sh.getRange('C4').setValue(1).setFontWeight('bold').setHorizontalAlignment('left').setBackground('#fff2cc');
+  sh.getRange('I3').setValue('Escaneo de esta planilla').setFontWeight('bold');
+  sh.getRange('I4').setFormula(FORMULA_ESCANEO);
   formatearPlanilla_(sh);
 }
 
